@@ -32,6 +32,7 @@ import com.github.mustachejava.Mustache;
 import com.github.mustachejava.MustacheFactory;
 import com.google.common.io.ByteStreams;
 import com.google.common.io.Closeables;
+import com.google.common.io.Files;
 
 import net.wissel.blogrender.EntriesWithFiles.FileEntry;
 
@@ -468,8 +469,9 @@ public class BlogRenderer {
 		final String template = this.config.ATTACHMENT_TEMPLATE;
 		final String finalDestination = this.config.destinationDirectory + this.config.downloadDirectory
 				+ this.config.indexFileName;
-
-		final FileOutputStream out = new FileOutputStream(new File(finalDestination));
+		File wohin = new File(finalDestination);
+		Files.createParentDirs(wohin);
+		final FileOutputStream out = new FileOutputStream(wohin);
 		final Writer pw = new PrintWriter(out);
 
 		final MustacheFactory mf = new DefaultMustacheFactory(new File(this.config.templateDirectory));
@@ -972,7 +974,10 @@ public class BlogRenderer {
 
 		if (saveThis) {
 			OutputStream finalOut = null;
+			
 			try {
+				// Ensure the directory structure exists
+				Files.createParentDirs(targetFile);
 				finalOut = new FileOutputStream(targetFile);
 				finalOut.write(newData);
 				finalOut.flush();
