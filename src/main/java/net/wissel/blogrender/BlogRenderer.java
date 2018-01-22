@@ -49,14 +49,6 @@ public class BlogRenderer {
 	 */
 	public static void main(final String[] args) throws IOException {
 
-		final String property = System.getProperty("java.library.path");
-		System.out.print("java.library.path: ");
-		System.out.println(property);
-		final Map<String, String> env = System.getenv();
-		for (final String envName : env.keySet()) {
-			System.out.format("%s=%s%n", envName, env.get(envName));
-		}
-
 		// ALL Parameters are in the config object which reads/writes
 		// configuration from JSON
 		final BlogRenderer bm = new BlogRenderer(Config.get(Config.CONFIG_NAME));

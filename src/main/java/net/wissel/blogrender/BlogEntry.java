@@ -1,3 +1,24 @@
+/** ========================================================================= *
+ * Copyright (C)  2017, 2018 Stephan Wissel                                   *
+ *                            All rights reserved.                            *
+ *                                                                            *
+ *  @author     Stephan H. Wissel (stw) <stephan@wissel@net>                  *
+ *                                       @notessensei                         *
+ * @version     1.0                                                           *
+ * ========================================================================== *
+ *                                                                            *
+ * Licensed under the  Apache License, Version 2.0  (the "License").  You may *
+ * not use this file except in compliance with the License.  You may obtain a *
+ * copy of the License at <http://www.apache.org/licenses/LICENSE-2.0>.       *
+ *                                                                            *
+ * Unless  required  by applicable  law or  agreed  to  in writing,  software *
+ * distributed under the License is distributed on an  "AS IS" BASIS, WITHOUT *
+ * WARRANTIES OR  CONDITIONS OF ANY KIND, either express or implied.  See the *
+ * License for the  specific language  governing permissions  and limitations *
+ * under the License.                                                         *
+ *                                                                            *
+ * ========================================================================== *
+ */
 package net.wissel.blogrender;
 
 import java.io.ByteArrayOutputStream;
@@ -582,11 +603,15 @@ public class BlogEntry implements Serializable, Comparable<BlogEntry> {
 			for (final String curFile : commentDir.list()) {
 				final BlogComments curComm = BlogComments.loadFromJson(commentDir.getPath() + "/" + curFile);
 				if (curComm != null) {
+					if (curComm.isMarkdown()) {
+						String markdownText = curComm.getComment();
+						String htmlText = MarkdownConverter.markdown2Html(markdownText);
+						curComm.setComment(htmlText);
+					}
 					this.comments.add(curComm);
 				}
 			}
 		}
 
 	}
-
 }

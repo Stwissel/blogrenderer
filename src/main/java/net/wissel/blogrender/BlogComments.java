@@ -53,6 +53,7 @@ public class BlogComments implements Comparable<BlogComments> {
 	private String remoteAddress;
 	private String eMail;
 	private String url;
+	private boolean markdown;
 
 	private String gravatarURL;
 
@@ -147,6 +148,13 @@ public class BlogComments implements Comparable<BlogComments> {
 	}
 
 	/**
+	 * @return the markdown
+	 */
+	public boolean isMarkdown() {
+		return this.markdown;
+	}
+
+	/**
 	 * Save the object to a JSON file for reuse
 	 */
 	public void saveDatatoJson(final OutputStream out) {
@@ -196,6 +204,14 @@ public class BlogComments implements Comparable<BlogComments> {
 
 	public void setGravatarURL(final String gravatarURL) {
 		this.gravatarURL = gravatarURL;
+	}
+
+	/**
+	 * @param markdown
+	 *            the markdown to set
+	 */
+	public void setMarkdown(final boolean markdown) {
+		this.markdown = markdown;
 	}
 
 	/**
