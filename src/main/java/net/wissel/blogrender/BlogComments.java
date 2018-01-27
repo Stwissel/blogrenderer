@@ -13,9 +13,11 @@ import java.util.Date;
 
 import org.apache.commons.codec.digest.DigestUtils;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 
+@JsonIgnoreProperties
 public class BlogComments implements Comparable<BlogComments> {
 
 	private final static String GRAVATAR_URL = "//www.gravatar.com/avatar/";
@@ -32,12 +34,16 @@ public class BlogComments implements Comparable<BlogComments> {
 				final Gson gson = new GsonBuilder().create();
 				result = gson.fromJson(new InputStreamReader(in), BlogComments.class);
 				in.close();
+				if (result.isMarkdown()) {
+					String markdownText = result.getComment();
+					String htmlText = MarkdownConverter.markdown2Html(markdownText);
+					result.setComment(htmlText);
+				}
 			} catch (final FileNotFoundException e) {
 				e.printStackTrace();
 			} catch (final IOException e) {
 				e.printStackTrace();
 			}
-
 		} else {
 			System.err.println("Comment doesn't exist:" + fileName);
 		}
@@ -54,6 +60,7 @@ public class BlogComments implements Comparable<BlogComments> {
 	private String eMail;
 	private String url;
 	private boolean markdown;
+	private String UNID;
 
 	private String gravatarURL;
 
@@ -131,6 +138,13 @@ public class BlogComments implements Comparable<BlogComments> {
 	 */
 	public String getRemoteAddress() {
 		return this.remoteAddress;
+	}
+
+	/**
+	 * @return the uNID
+	 */
+	public String getUNID() {
+		return this.UNID;
 	}
 
 	/**
@@ -236,6 +250,14 @@ public class BlogComments implements Comparable<BlogComments> {
 	 */
 	public void setRemoteAddress(final String remoteAddress) {
 		this.remoteAddress = remoteAddress;
+	}
+
+	/**
+	 * @param uNID
+	 *            the uNID to set
+	 */
+	public void setUNID(final String uNID) {
+		this.UNID = uNID;
 	}
 
 	/**

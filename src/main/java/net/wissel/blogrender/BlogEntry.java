@@ -34,7 +34,9 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
 
@@ -56,21 +58,14 @@ public class BlogEntry implements Serializable, Comparable<BlogEntry> {
 
 		// Load new Comments
 		result.loadCommentsFromDisk(config);
-		
-		// The comments might not be sorted...
-		final Set<BlogComments> bc = new TreeSet<BlogComments>();
-		bc.addAll(result.getComments());
-		result.setComments(bc);
-		
-		// Fix the link item
-		result.category = LinkItem.cleanupLinkItems(result.category);
-
+		result.cleanupComments();
 		return result;
 	}
 
 	private String author;
 
-	private List<LinkItem> category = new ArrayList<LinkItem>();
+	private List<String> category = new ArrayList<String>();
+
 	private Date publishDate = new Date();
 	// The HTML representation
 	private String mainBody = null;
@@ -86,18 +81,18 @@ public class BlogEntry implements Serializable, Comparable<BlogEntry> {
 	private String oldURL;
 	private String storyImage;
 	private Boolean commentsclosed = false;
-	private final Set<BlogComments> comments = new TreeSet<BlogComments>();
-
+	private final Map<String, BlogComments> comments = new HashMap<String, BlogComments>();
 	// The following strings are redundant, but it
 	// makes it easier to deal with the JSON then
 	private String allBody;
+
 	private String shortDate;
 	private String dateCategory;
 	// The following variables are only used by the
 	// templating engine and are not fed into the JSON
 	private transient Collection<LinkItem> allCategories = null;
-
 	private transient Collection<LinkItem> allDateCategories = null;
+
 	private transient Collection<LinkItem> seriesMember = null;
 	private transient LinkItem previousItem = null;
 	private transient LinkItem nextItem = null;
@@ -108,8 +103,7 @@ public class BlogEntry implements Serializable, Comparable<BlogEntry> {
 	 *            the category to set
 	 */
 	public void addCategory(final String cat2add) {
-		final LinkItem newCat = new LinkItem(cat2add);
-		this.category.add(newCat);
+		this.category.add(cat2add);
 	}
 
 	@Override
@@ -153,7 +147,7 @@ public class BlogEntry implements Serializable, Comparable<BlogEntry> {
 	/**
 	 * @return the category
 	 */
-	public List<LinkItem> getCategory() {
+	public List<String> getCategory() {
 		return this.category;
 	}
 
@@ -168,7 +162,9 @@ public class BlogEntry implements Serializable, Comparable<BlogEntry> {
 	 * @return the comments
 	 */
 	public Set<BlogComments> getComments() {
-		return this.comments;
+		final Set<BlogComments> result = new TreeSet<BlogComments>();
+		result.addAll(this.comments.values());
+		return result;
 	}
 
 	/**
@@ -210,7 +206,7 @@ public class BlogEntry implements Serializable, Comparable<BlogEntry> {
 
 	/**
 	 * Returns an unique key for comparison
-	 * 
+	 *
 	 * @return
 	 */
 	public String getKey() {
@@ -361,7 +357,7 @@ public class BlogEntry implements Serializable, Comparable<BlogEntry> {
 				w.write(", ");
 			}
 			w.write("\"");
-			w.write(this.getCategory().get(i).name);
+			w.write(this.getCategory().get(i));
 			w.write("\"");
 		}
 		w.write("]\n");
@@ -442,7 +438,7 @@ public class BlogEntry implements Serializable, Comparable<BlogEntry> {
 	 * @param category
 	 *            the category to set
 	 */
-	public void setCategory(final List<LinkItem> category) {
+	public void setCategory(final List<String> category) {
 		this.category = category;
 	}
 
@@ -452,7 +448,9 @@ public class BlogEntry implements Serializable, Comparable<BlogEntry> {
 	 */
 	public void setComments(final Set<BlogComments> comments) {
 		this.comments.clear();
-		this.comments.addAll(comments);
+		comments.forEach(comment -> {
+			this.comments.put(comment.getUNID(), comment);
+		});
 	}
 
 	public void setCommentStatus(final String cStatus) {
@@ -592,6 +590,20 @@ public class BlogEntry implements Serializable, Comparable<BlogEntry> {
 		return out.toString();
 	}
 
+	private void cleanupComments() {
+		this.comments.forEach((key,entry) -> {
+			String candidate = entry.getComment();
+			int startpos = candidate.indexOf("<body>");
+			int endpos = candidate.indexOf("</body>");
+			// Stripping out head/body
+			if (startpos > -1 && endpos > 0) {
+				String result = candidate.substring(startpos+6, endpos);
+				entry.setComment(result);
+			}
+		});
+
+	}
+
 	/**
 	 * Comments could be inside the the main article (from legacy) or be in a
 	 * separate directory (new). This function loads them from disk
@@ -603,12 +615,7 @@ public class BlogEntry implements Serializable, Comparable<BlogEntry> {
 			for (final String curFile : commentDir.list()) {
 				final BlogComments curComm = BlogComments.loadFromJson(commentDir.getPath() + "/" + curFile);
 				if (curComm != null) {
-					if (curComm.isMarkdown()) {
-						String markdownText = curComm.getComment();
-						String htmlText = MarkdownConverter.markdown2Html(markdownText);
-						curComm.setComment(htmlText);
-					}
-					this.comments.add(curComm);
+					this.comments.put(curComm.getUNID(), curComm);
 				}
 			}
 		}

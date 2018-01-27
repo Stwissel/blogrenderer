@@ -15,6 +15,7 @@ import java.io.PrintWriter;
 import java.io.Writer;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Date;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
@@ -23,6 +24,7 @@ import java.util.Set;
 import java.util.TreeMap;
 import java.util.TreeSet;
 
+import org.joda.time.Duration;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
@@ -36,11 +38,12 @@ import com.google.common.io.Files;
 
 import net.wissel.blogrender.EntriesWithFiles.FileEntry;
 
-
 /**
  * @author stw
  */
 public class BlogRenderer {
+
+	private final static String ALL_CATEGORY_NAME = "allCategories";
 
 	/**
 	 * @param args
@@ -48,7 +51,7 @@ public class BlogRenderer {
 	 * @throws IOException
 	 */
 	public static void main(final String[] args) throws IOException {
-
+		final Date start = new Date();
 		// ALL Parameters are in the config object which reads/writes
 		// configuration from JSON
 		final BlogRenderer bm = new BlogRenderer(Config.get(Config.CONFIG_NAME));
@@ -58,11 +61,12 @@ public class BlogRenderer {
 		bm.loadBlogFromDisk();
 		System.out.println("\n\n ***************** Rendering to disk ***********************\n\n");
 		bm.renderBlog();
+		final Date end = new Date();
 		System.out.println("\n\n ************************** Done! **************************\n\n");
+		final Duration d = new Duration(start.getTime(), end.getTime());
+		System.out.println("Duration: " + String.valueOf(d.getStandardSeconds()) + " seconds");
 
 	}
-	
-	private final static String ALL_CATEGORY_NAME = "allCategories";
 
 	private final TreeMap<String, LinkItem> allCategories = new TreeMap<String, LinkItem>();
 
@@ -97,15 +101,15 @@ public class BlogRenderer {
 
 		final RenderInstructions riCat = new RenderInstructions();
 		riCat.type = "index";
-		riCat.key = ALL_CATEGORY_NAME;
+		riCat.key = BlogRenderer.ALL_CATEGORY_NAME;
 		riCat.pageTitle = "All Categories";
 		riCat.outFileName = "categories/" + config.indexFileName;
 		riCat.TemplateName = config.ALL_CATEGORY_TEMPLATE;
-		riCat.pageLink = ALL_CATEGORY_NAME;
+		riCat.pageLink = BlogRenderer.ALL_CATEGORY_NAME;
 		riCat.reverse = true;
 
 		this.overviewPages.put("allEntries", riAll);
-		this.overviewPages.put(ALL_CATEGORY_NAME, riCat);
+		this.overviewPages.put(BlogRenderer.ALL_CATEGORY_NAME, riCat);
 
 	}
 
@@ -132,8 +136,8 @@ public class BlogRenderer {
 			return;
 		}
 
-		final String path = srcDir.getPath() ;
-		this.loadBlogEntriesFromDisk(path+ this.getConfig().documentDirectory);
+		final String path = srcDir.getPath();
+		this.loadBlogEntriesFromDisk(path + this.getConfig().documentDirectory);
 		System.out.println("\n\nBlog loaded from disk");
 		this.loadFileDefinitionsFromDisk(path);
 		System.out.println("\n\nFile definitions loaded from disk");
@@ -172,7 +176,8 @@ public class BlogRenderer {
 			this.mapperOldNewURLs.put(key, value);
 
 			// Populate the category list
-			for (final LinkItem li : be.getCategory()) {
+			for (final String catName : be.getCategory()) {
+				LinkItem li = new LinkItem(catName);
 				final String catKey = li.place;
 				if (this.allCategories.containsKey(catKey)) {
 					this.allCategories.get(catKey).count += 1;
@@ -180,9 +185,9 @@ public class BlogRenderer {
 					catItem = new LinkItem(li.name, this.config.webBlogLocation + this.config.categoriesLocation);
 					this.allCategories.put(catKey, catItem);
 				}
-				
+
 				this.overviewPages.get("allCategories").addToCategory(be, li.name, li.place);
-				
+
 			}
 			// Date with month and year or only year?
 			// Month - year
@@ -195,7 +200,8 @@ public class BlogRenderer {
 			}
 			// Add to the lists for category, month, year
 			this.addToOverviewPage("year", null, be.getDateYear(), be);
-			for (final LinkItem li : be.getCategory()) {
+			for (final String catName : be.getCategory()) {
+				LinkItem li = new LinkItem(catName);
 				this.addToOverviewPage("category", li.name, li.place, be);
 			}
 			this.addToOverviewPage("yearmonth", null, be.getDateYear() + "/" + be.getDateMonthNumber(), be);
@@ -435,15 +441,12 @@ public class BlogRenderer {
 		bi.allCategories = this.allCategories.values();
 		bi.allDateCategories = this.allDateCategories.values();
 		bi.topArticles = new BlogEntryCollection(true);
-		final int max = 5;
-		int i = 0;
-		final Iterator<BlogEntry> it = this.theBlog.descendingSet().iterator();
+		final Iterator<BlogEntry> it = this.theBlog.iterator();
 
-		while (it.hasNext() && (i < max)) {
+		while (it.hasNext()) {
 			final BlogEntry cur = it.next();
 			if (cur.getStatus().equals("Published")) {
 				bi.topArticles.add(cur);
-				i++;
 			}
 		}
 
@@ -461,7 +464,7 @@ public class BlogRenderer {
 		final String template = this.config.ATTACHMENT_TEMPLATE;
 		final String finalDestination = this.config.destinationDirectory + this.config.downloadDirectory
 				+ this.config.indexFileName;
-		File wohin = new File(finalDestination);
+		final File wohin = new File(finalDestination);
 		Files.createParentDirs(wohin);
 		final FileOutputStream out = new FileOutputStream(wohin);
 		final Writer pw = new PrintWriter(out);
@@ -643,12 +646,13 @@ public class BlogRenderer {
 		final RSSFeedWriter rss = new RSSFeedWriter(this.getConfig(), bi);
 		try {
 			rss.write(out);
-			if (this.saveIfChanged(out.toByteArray(), finalDestination) || this.saveIfChanged(out.toByteArray(), finalDestination2)) {
+			if (this.saveIfChanged(out.toByteArray(), finalDestination)
+					|| this.saveIfChanged(out.toByteArray(), finalDestination2)) {
 				System.out.println("\nRendered stories.rss and stories.xml");
 			} else {
 				System.out.println("\nRSS hasn't changed!");
 			}
-			
+
 		} catch (final Exception e) {
 			System.out.println("\nstories.rss rendering failed: " + e.getMessage());
 		}
@@ -702,7 +706,8 @@ public class BlogRenderer {
 			dirs.mkdirs();
 		}
 		// Set the current context
-		for (final LinkItem cat : be.getCategory()) {
+		for (final String catName : be.getCategory()) {
+			LinkItem cat = new LinkItem(catName);
 			final String c = cat.place;
 			this.allCategories.get(c).active = true;
 		}
@@ -726,7 +731,8 @@ public class BlogRenderer {
 		this.saveIfChanged(out.toByteArray(), location);
 
 		// Cleanup
-		for (final LinkItem cat : be.getCategory()) {
+		for (final String catName : be.getCategory()) {
+			LinkItem cat = new LinkItem(catName);
 			final String c = cat.place;
 			this.allCategories.get(c).active = false;
 		}
@@ -780,7 +786,8 @@ public class BlogRenderer {
 				goodToGo = true;
 			} else if (ri.categories != null) {
 				bi.categorizedEntries = new ArrayList<BlogIndex>();
-				final Iterator<String> it = (ri.reverse) ? ri.categories.keySet().iterator(): ri.categories.descendingKeySet().iterator();
+				final Iterator<String> it = (ri.reverse) ? ri.categories.keySet().iterator()
+						: ri.categories.descendingKeySet().iterator();
 				// We need to copy from the render instruction to get the
 				// sequence reversed
 				while (it.hasNext()) {
@@ -966,7 +973,7 @@ public class BlogRenderer {
 
 		if (saveThis) {
 			OutputStream finalOut = null;
-			
+
 			try {
 				// Ensure the directory structure exists
 				Files.createParentDirs(targetFile);
@@ -983,7 +990,7 @@ public class BlogRenderer {
 		} else {
 			System.out.print(".");
 		}
-		
+
 		return saveThis;
 	}
 
