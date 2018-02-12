@@ -23,6 +23,7 @@ package net.wissel.blogrender;
 
 import java.io.ByteArrayOutputStream;
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -37,6 +38,7 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Scanner;
 import java.util.Set;
 import java.util.TreeSet;
 
@@ -51,15 +53,54 @@ public class BlogEntry implements Serializable, Comparable<BlogEntry> {
 
 	private static final long serialVersionUID = 1L;
 
-	public static BlogEntry loadDataFromJson(final InputStream in, final Config config) {
+	public static BlogEntry loadDataFromJson(final InputStream in, final String fileName, final Config config) {
 		BlogEntry result = null;
 		final Gson gson = new GsonBuilder().create();
 		result = gson.fromJson(new InputStreamReader(in), BlogEntry.class);
+		
+		// eventually load Blog entry from disk
+		if (fileName != null) {
+			result.addHTMLBody(fileName);
+		}
 
 		// Load new Comments
 		result.loadCommentsFromDisk(config);
 		result.cleanupComments();
 		return result;
+	}
+
+	private void addHTMLBody(final String fileName) {
+		if (!fileName.endsWith(".json")) {
+			return;
+		}
+		final String htmlContentFile = fileName.substring(0, fileName.lastIndexOf(".json"));
+		final String htmlMoreFile = htmlContentFile.substring(0,htmlContentFile.lastIndexOf(".html"))+".more.html";
+		
+		File htmlFile = new File(htmlContentFile);
+		File moreFile = new File(htmlMoreFile);
+		
+		if (htmlFile.exists()) {
+			try {
+				Scanner htmlScanner = new Scanner(htmlFile);
+				String htmlContent = htmlScanner.useDelimiter("\\Z").next();
+				htmlScanner.close();
+				this.setMainBody(htmlContent);
+			} catch (FileNotFoundException e) {
+				e.printStackTrace();
+			}
+		}
+		
+		if (moreFile.exists()) {
+			try {
+				Scanner moreScanner = new Scanner(moreFile);
+				String moreContent = moreScanner.useDelimiter("\\Z").next();
+				moreScanner.close();
+				this.setMoreBody(moreContent);
+			} catch (FileNotFoundException e) {
+				e.printStackTrace();
+			}
+		}
+		
 	}
 
 	private String author;

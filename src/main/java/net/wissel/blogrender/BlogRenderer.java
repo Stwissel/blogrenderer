@@ -387,7 +387,7 @@ public class BlogRenderer {
 			BlogEntry be = null;
 			try {
 				final FileInputStream in = new FileInputStream(new File(sourceFileOrDirName));
-				be = BlogEntry.loadDataFromJson(in, this.config);
+				be = BlogEntry.loadDataFromJson(in, sourceFileOrDirName, this.config);
 				in.close();
 			} catch (final Exception e) {
 				e.printStackTrace();
