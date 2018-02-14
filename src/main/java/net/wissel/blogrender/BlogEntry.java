@@ -23,8 +23,8 @@ package net.wissel.blogrender;
 
 import java.io.ByteArrayOutputStream;
 import java.io.File;
-import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
+import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
@@ -38,10 +38,11 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Scanner;
 import java.util.Set;
 import java.util.TreeSet;
 
+import com.google.common.base.Charsets;
+import com.google.common.io.Files;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 
@@ -57,7 +58,7 @@ public class BlogEntry implements Serializable, Comparable<BlogEntry> {
 		BlogEntry result = null;
 		final Gson gson = new GsonBuilder().create();
 		result = gson.fromJson(new InputStreamReader(in), BlogEntry.class);
-		
+
 		// eventually load Blog entry from disk
 		if (fileName != null) {
 			result.addHTMLBody(fileName);
@@ -69,45 +70,12 @@ public class BlogEntry implements Serializable, Comparable<BlogEntry> {
 		return result;
 	}
 
-	private void addHTMLBody(final String fileName) {
-		if (!fileName.endsWith(".json")) {
-			return;
-		}
-		final String htmlContentFile = fileName.substring(0, fileName.lastIndexOf(".json"));
-		final String htmlMoreFile = htmlContentFile.substring(0,htmlContentFile.lastIndexOf(".html"))+".more.html";
-		
-		File htmlFile = new File(htmlContentFile);
-		File moreFile = new File(htmlMoreFile);
-		
-		if (htmlFile.exists()) {
-			try {
-				Scanner htmlScanner = new Scanner(htmlFile);
-				String htmlContent = htmlScanner.useDelimiter("\\Z").next();
-				htmlScanner.close();
-				this.setMainBody(htmlContent);
-			} catch (FileNotFoundException e) {
-				e.printStackTrace();
-			}
-		}
-		
-		if (moreFile.exists()) {
-			try {
-				Scanner moreScanner = new Scanner(moreFile);
-				String moreContent = moreScanner.useDelimiter("\\Z").next();
-				moreScanner.close();
-				this.setMoreBody(moreContent);
-			} catch (FileNotFoundException e) {
-				e.printStackTrace();
-			}
-		}
-		
-	}
-
 	private String author;
 
 	private List<String> category = new ArrayList<String>();
 
 	private Date publishDate = new Date();
+
 	// The HTML representation
 	private String mainBody = null;
 	// If there's more to read
@@ -126,15 +94,15 @@ public class BlogEntry implements Serializable, Comparable<BlogEntry> {
 	// The following strings are redundant, but it
 	// makes it easier to deal with the JSON then
 	private String allBody;
-
 	private String shortDate;
+
 	private String dateCategory;
 	// The following variables are only used by the
 	// templating engine and are not fed into the JSON
 	private transient Collection<LinkItem> allCategories = null;
 	private transient Collection<LinkItem> allDateCategories = null;
-
 	private transient Collection<LinkItem> seriesMember = null;
+
 	private transient LinkItem previousItem = null;
 	private transient LinkItem nextItem = null;
 	private final boolean isBlog = true;
@@ -631,14 +599,50 @@ public class BlogEntry implements Serializable, Comparable<BlogEntry> {
 		return out.toString();
 	}
 
+	private void addHTMLBody(final String fileName) {
+		if (!fileName.endsWith(".json")) {
+			return;
+		}
+		final String htmlContentFile = fileName.substring(0, fileName.lastIndexOf(".json"));
+		final String htmlMoreFile = htmlContentFile.substring(0, htmlContentFile.lastIndexOf(".html")) + ".more.html";
+
+		final File htmlFile = new File(htmlContentFile);
+		final File moreFile = new File(htmlMoreFile);
+
+		if (htmlFile.exists()) {
+			try {
+				// Scanner htmlScanner = new Scanner(htmlFile);
+				// String htmlContent = htmlScanner.useDelimiter("\\Z").next();
+				// htmlScanner.close();
+				final String htmlContent = Files.asCharSource(htmlFile, Charsets.UTF_8).read();
+				this.setMainBody(htmlContent);
+			} catch (final IOException e) {
+				e.printStackTrace();
+			}
+		}
+
+		if (moreFile.exists()) {
+			try {
+				// Scanner moreScanner = new Scanner(moreFile);
+				// String moreContent = moreScanner.useDelimiter("\\Z").next();
+				// moreScanner.close();
+				final String moreContent = Files.asCharSource(moreFile, Charsets.UTF_8).read();
+				this.setMoreBody(moreContent);
+			} catch (final IOException e) {
+				e.printStackTrace();
+			}
+		}
+
+	}
+
 	private void cleanupComments() {
-		this.comments.forEach((key,entry) -> {
-			String candidate = entry.getComment();
-			int startpos = candidate.indexOf("<body>");
-			int endpos = candidate.indexOf("</body>");
+		this.comments.forEach((key, entry) -> {
+			final String candidate = entry.getComment();
+			final int startpos = candidate.indexOf("<body>");
+			final int endpos = candidate.indexOf("</body>");
 			// Stripping out head/body
-			if (startpos > -1 && endpos > 0) {
-				String result = candidate.substring(startpos+6, endpos);
+			if ((startpos > -1) && (endpos > 0)) {
+				final String result = candidate.substring(startpos + 6, endpos);
 				entry.setComment(result);
 			}
 		});
