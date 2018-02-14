@@ -177,7 +177,7 @@ public class BlogRenderer {
 
 			// Populate the category list
 			for (final String catName : be.getCategory()) {
-				LinkItem li = new LinkItem(catName);
+				final LinkItem li = new LinkItem(catName);
 				final String catKey = li.place;
 				if (this.allCategories.containsKey(catKey)) {
 					this.allCategories.get(catKey).count += 1;
@@ -201,7 +201,7 @@ public class BlogRenderer {
 			// Add to the lists for category, month, year
 			this.addToOverviewPage("year", null, be.getDateYear(), be);
 			for (final String catName : be.getCategory()) {
-				LinkItem li = new LinkItem(catName);
+				final LinkItem li = new LinkItem(catName);
 				this.addToOverviewPage("category", li.name, li.place, be);
 			}
 			this.addToOverviewPage("yearmonth", null, be.getDateYear() + "/" + be.getDateMonthNumber(), be);
@@ -392,7 +392,7 @@ public class BlogRenderer {
 			} catch (final Exception e) {
 				e.printStackTrace();
 			}
-			if ((be != null) && (be.getTitle() != null)) {
+			if ((be != null) && (be.getTitle() != null) && be.getStatus().equalsIgnoreCase("Published")) {
 				this.addBlogContext(be);
 			}
 
@@ -707,7 +707,7 @@ public class BlogRenderer {
 		}
 		// Set the current context
 		for (final String catName : be.getCategory()) {
-			LinkItem cat = new LinkItem(catName);
+			final LinkItem cat = new LinkItem(catName);
 			final String c = cat.place;
 			this.allCategories.get(c).active = true;
 		}
@@ -732,7 +732,7 @@ public class BlogRenderer {
 
 		// Cleanup
 		for (final String catName : be.getCategory()) {
-			LinkItem cat = new LinkItem(catName);
+			final LinkItem cat = new LinkItem(catName);
 			final String c = cat.place;
 			this.allCategories.get(c).active = false;
 		}
