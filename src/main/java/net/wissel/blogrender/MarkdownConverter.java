@@ -38,6 +38,33 @@ public class MarkdownConverter {
     
 	public static String markdown2Html(String markdownText) {
 		Node document = PARSER.parse(markdownText);
-        return RENDERER.render(document);
+        String result = RENDERER.render(document);
+        return result;
+	}
+
+	/**
+	 * 
+	 * @param mdContenCandidate markdown
+	 * @return HTML from Markdown that renders nicely for code highlighter
+	 */
+	public static String markdown2HtmlWithCode(String mdContentCandidate) {
+		String htmlContent = MarkdownConverter.markdown2Html(mdContentCandidate);
+		return MarkdownConverter.fixCodeHTML(htmlContent);
+	}
+
+	private static String fixCodeHTML(String candidate) {
+		StringBuilder result = new StringBuilder(candidate);
+		// Need to check for <pre><code class="language-
+		final String searchFor = "<pre><code class=\"language-";
+		final String searchForClose = "</code></pre>";
+		final String replaceWith = "<pre class=\"brush: ";
+		final String replaceWithClose = "</pre>";
+		while (result.indexOf(searchFor) > -1) {
+			int startPos = result.indexOf(searchFor);
+			int secondPart = result.indexOf(searchForClose, startPos);
+			result.replace(secondPart, secondPart+searchForClose.length(), replaceWithClose);
+			result.replace(startPos, startPos+searchFor.length(), replaceWith);
+		}
+		return result.toString();
 	}
 }

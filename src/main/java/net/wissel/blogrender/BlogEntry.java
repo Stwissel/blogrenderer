@@ -605,15 +605,40 @@ public class BlogEntry implements Serializable, Comparable<BlogEntry> {
 		}
 		final String htmlContentFile = fileName.substring(0, fileName.lastIndexOf(".json"));
 		final String htmlMoreFile = htmlContentFile.substring(0, htmlContentFile.lastIndexOf(".html")) + ".more.html";
+		final String mdContentFile =  htmlContentFile.substring(0, htmlContentFile.lastIndexOf(".html"))+".md";
+		final String mdMoreFile =  htmlContentFile.substring(0, htmlContentFile.lastIndexOf(".html"))+".more.md";
 
+		final File mdFile = new File(mdContentFile);
+		final File moreMdFile = new File(mdMoreFile);
 		final File htmlFile = new File(htmlContentFile);
 		final File moreFile = new File(htmlMoreFile);
+		
+		// Check if we have content as markdown or HTML file. HTML takes priority over md file
+		
+		// Markdown content check
+		if (mdFile.exists()) {
+			try {
+				final String mdContenCandidate = Files.asCharSource(mdFile, Charsets.UTF_8).read();
+				final String htmlContent = MarkdownConverter.markdown2HtmlWithCode(mdContenCandidate);
+				this.setMainBody(htmlContent);
+			} catch (final IOException e) {
+				e.printStackTrace();
+			}
+		}
 
+		if (moreMdFile.exists()) {
+			try {
+				final String moreContentCandidate = Files.asCharSource(moreMdFile, Charsets.UTF_8).read();
+				final String moreContent = MarkdownConverter.markdown2HtmlWithCode(moreContentCandidate);
+				this.setMoreBody(moreContent);
+			} catch (final IOException e) {
+				e.printStackTrace();
+			}
+		}
+
+		// HTML Content check
 		if (htmlFile.exists()) {
 			try {
-				// Scanner htmlScanner = new Scanner(htmlFile);
-				// String htmlContent = htmlScanner.useDelimiter("\\Z").next();
-				// htmlScanner.close();
 				final String htmlContent = Files.asCharSource(htmlFile, Charsets.UTF_8).read();
 				this.setMainBody(htmlContent);
 			} catch (final IOException e) {
@@ -623,9 +648,6 @@ public class BlogEntry implements Serializable, Comparable<BlogEntry> {
 
 		if (moreFile.exists()) {
 			try {
-				// Scanner moreScanner = new Scanner(moreFile);
-				// String moreContent = moreScanner.useDelimiter("\\Z").next();
-				// moreScanner.close();
 				final String moreContent = Files.asCharSource(moreFile, Charsets.UTF_8).read();
 				this.setMoreBody(moreContent);
 			} catch (final IOException e) {
