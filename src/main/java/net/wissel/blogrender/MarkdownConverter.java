@@ -52,6 +52,12 @@ public class MarkdownConverter {
 		return MarkdownConverter.fixCodeHTML(htmlContent);
 	}
 
+	/**
+	 * Need to fix the way code is rendered. I'm using SyntaxHighlighter, not
+	 * just pre/code. Also Flexmark converts ' into &rsquo; need to reverse that
+	 * @param candidate
+	 * @return the fixed html
+	 */
 	private static String fixCodeHTML(String candidate) {
 		StringBuilder result = new StringBuilder(candidate);
 		// Need to check for <pre><code class="language-
@@ -59,11 +65,21 @@ public class MarkdownConverter {
 		final String searchForClose = "</code></pre>";
 		final String replaceWith = "<pre class=\"brush: ";
 		final String replaceWithClose = "</pre>";
+		final String searchFor2 = "&rsquo;";
+		final String replaceWith2 = "'";
+		
+		// Code formatting
 		while (result.indexOf(searchFor) > -1) {
 			int startPos = result.indexOf(searchFor);
 			int secondPart = result.indexOf(searchForClose, startPos);
 			result.replace(secondPart, secondPart+searchForClose.length(), replaceWithClose);
 			result.replace(startPos, startPos+searchFor.length(), replaceWith);
+		}
+		
+		// Aphostroph handling
+		while (result.indexOf(searchFor2) > -1) {
+			int startPos = result.indexOf(searchFor2);
+			result.replace(startPos, startPos+searchFor2.length(), replaceWith2);
 		}
 		return result.toString();
 	}

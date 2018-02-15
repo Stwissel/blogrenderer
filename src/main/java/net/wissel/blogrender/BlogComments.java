@@ -36,7 +36,7 @@ public class BlogComments implements Comparable<BlogComments> {
 				in.close();
 				if (result.isMarkdown()) {
 					String markdownText = result.getComment();
-					String htmlText = MarkdownConverter.markdown2Html(markdownText);
+					String htmlText = MarkdownConverter.markdown2HtmlWithCode(markdownText);
 					result.setComment(htmlText);
 				}
 			} catch (final FileNotFoundException e) {
