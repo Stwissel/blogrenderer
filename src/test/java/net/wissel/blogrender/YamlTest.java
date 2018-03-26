@@ -22,6 +22,8 @@
 package net.wissel.blogrender;
 
 import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.util.Iterator;
@@ -44,17 +46,37 @@ public class YamlTest {
      * @param args
      * @throws IOException
      */
-    public static void main(final String[] args) throws IOException {
+    public static void main(final String[] args) throws Exception {
         final YamlTest yt = new YamlTest();
-        yt.test1();
+        //yt.test1();
+        yt.test2();
+    }
 
+    private void test2() throws Exception {
+        String fileName = "/Users/swissel/Blog/blogsource/src/documents/2018/02/query-a-json-object-like-xpath.blog";
+        File blogFile = new File(fileName);
+        FileInputStream in = new FileInputStream(blogFile);
+        BlogEntry be = BlogEntry.loadDataFromBlog(in, fileName, Config.get(Config.CONFIG_NAME));
+        
+        in.close();
+        final DumperOptions options = new DumperOptions();
+        options.setPrettyFlow(true);
+        options.setAllowUnicode(true);
+        options.setExplicitStart(true);
+        // options.setExplicitEnd(true);
+        final PrintStream pw = System.out;
+        final BlogEntryMeta bc = new BlogEntryMeta(be);
+        final Yaml yaml = new Yaml(options);
+        pw.println(yaml.dumpAs(bc, Tag.MAP, FlowStyle.BLOCK));
+        pw.println(Config.get(Config.CONFIG_NAME).MARKDOW_SEPARATOR);
+        
     }
 
     private void test1() throws IOException {
 
         final Config config = Config.get(Config.CONFIG_NAME);
         final BlogRenderer br = new BlogRenderer(config);
-        br.loadBlogFromDisk();
+        br.loadBlogFromDisk(false);
         final DumperOptions options = new DumperOptions();
         options.setPrettyFlow(true);
         options.setAllowUnicode(true);

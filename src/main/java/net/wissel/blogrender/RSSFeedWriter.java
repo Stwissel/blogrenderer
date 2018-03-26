@@ -102,7 +102,7 @@ public class RSSFeedWriter {
                   eventWriter.add(end);
                   createNode(eventWriter, "title", entry.getTitle());
                   createNode(eventWriter, "description", entry.getMainBody());
-                  createNode(eventWriter, "link", entry.getNewURL());
+                  createNode(eventWriter, "link", entry.getURL());
                   createNode(eventWriter, "author", entry.getAuthor());
                   createNode(eventWriter, "guid", entry.getUNID());
                   createNode(eventWriter, "pubDate", entry.getPublishDateString());

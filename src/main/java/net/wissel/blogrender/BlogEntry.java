@@ -37,6 +37,7 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Scanner;
 import java.util.Set;
 import java.util.TreeSet;
 
@@ -52,6 +53,62 @@ public class BlogEntry extends BlogEntryMeta implements Serializable, Comparable
     public static final String DATE_FORMAT = "yyyy-MM-dd hh:mm";
 
     private static final long serialVersionUID = 1L;
+
+    public static BlogEntry loadDataFromBlog(final InputStream in, final String fileName, final Config config) {
+        BlogEntry result = null;
+
+        final Scanner scanner = new Scanner(in);
+        final StringBuilder yaml = new StringBuilder();
+        final StringBuilder rawBody = new StringBuilder();
+        boolean firstLine = true;
+        boolean yamlDone = false;
+        while (scanner.hasNextLine()) {
+            final String curLine = scanner.nextLine();
+            if (firstLine) {
+                if (!config.MARKDOW_SEPARATOR.equals(curLine)) {
+                    // No yaml - no luck
+                    break;
+                }
+                yaml.append(config.MARKDOW_SEPARATOR);
+                yaml.append(System.lineSeparator());
+                firstLine = false;
+            } else {
+                // Second line onwards
+                if (!yamlDone) {
+                    if (config.MARKDOW_SEPARATOR.equals(curLine)) {
+                        yamlDone = true;
+                        // Now we create the blog entry
+                        result = BlogEntry.fromMeta(BlogEntryMeta.loadFromYaml(yaml.toString()));
+                    } else {
+                        yaml.append(curLine);
+                    }
+                    yaml.append(System.lineSeparator());
+                } else {
+                    // Raw content
+                    rawBody.append(curLine);
+                    rawBody.append(System.lineSeparator());
+                }
+            }
+
+        }
+        scanner.close();
+
+        // eventually load additional Content from extra file
+        if (result != null) {
+            if ("HTML".equals(result.getSourceType())) {
+                result.setMainBody(rawBody.toString());
+            } else {
+                result.setMainBody(MarkdownConverter.markdown2HtmlWithCode(rawBody.toString()));
+            }
+            if (fileName != null) {
+                result.addMoreBodyFromFile(fileName);
+            }
+        }
+        // Load new Comments
+        result.loadCommentsFromDisk(config);
+        result.cleanupComments();
+        return result;
+    }
 
     public static BlogEntry loadDataFromJson(final InputStream in, final String fileName, final Config config) {
         BlogEntry result = null;
@@ -69,8 +126,26 @@ public class BlogEntry extends BlogEntryMeta implements Serializable, Comparable
         return result;
     }
 
+    private static BlogEntry fromMeta(final BlogEntryMeta be) {
+       BlogEntry result = new BlogEntry();
+       result.setAuthor(be.getAuthor());
+       result.setCategory(be.getCategory());
+       result.setPublishDate(be.getPublishDate());
+       result.setLocation(be.getLocation());
+       result.setStatus(be.getStatus());
+       result.setTitle(be.getTitle());
+       result.setSeries(be.getSeries());
+       result.setUNID(be.getUNID());
+       result.setURL(be.getURL());
+       result.setOldURL(be.getOldURL());
+       result.setCommentsclosed(be.getCommentsclosed());
+       result.setSourceType((be.getSourceType()));
+       return result;
+    }
+
     // The HTML representation
     private String mainBody = null;
+
     // If there's more to read
     private String                          moreBody = null;
     private final Map<String, BlogComments> comments = new HashMap<String, BlogComments>();
@@ -78,20 +153,20 @@ public class BlogEntry extends BlogEntryMeta implements Serializable, Comparable
     // makes it easier to deal with the JSON then
     private String allBody;
     private String shortDate;
-
     private String dateCategory;
+
     // The following variables are only used by the
     // templating engine and are not fed into the JSON
     private transient Collection<LinkItem> allCategories     = null;
     private transient Collection<LinkItem> allDateCategories = null;
     private transient Collection<LinkItem> seriesMember      = null;
+    private transient LinkItem             previousItem      = null;
 
-    private transient LinkItem previousItem = null;
-    private transient LinkItem nextItem     = null;
-    private final boolean      isBlog       = true;
+    private transient LinkItem nextItem = null;
+    private final boolean      isBlog   = true;
+    public transient String    metaFileName;
 
-    public transient String metaFileName;
-    public transient String sourceFileName = null;
+    public transient String sourceFileName     = null;
     public transient String sourceMoreFileName = null;
 
     /**
@@ -138,7 +213,7 @@ public class BlogEntry extends BlogEntryMeta implements Serializable, Comparable
             return "0";
         }
         return Integer.toHexString(this.comments.size());
-    }
+    };
 
     /**
      * @return the comments
@@ -179,17 +254,25 @@ public class BlogEntry extends BlogEntryMeta implements Serializable, Comparable
         return sdf.format(this.getPublishDate());
     }
 
+    public Collection<LinkItem> getDisplayCategories() {
+        final TreeSet<LinkItem> result = new TreeSet<>();
+        this.getCategory().forEach(cat -> {
+            result.add(new LinkItem(cat));
+        });
+        return result;
+    }
+
     /**
      * Returns an unique key for comparison
      *
      * @return
      */
     public String getKey() {
-        return this.getShortDate() + " - " + this.getNewURL();
+        return this.getShortDate() + " - " + this.getURL();
     }
 
     public LinkItem getLinkItem(final String baseURI) {
-        return new LinkItem(this.getTitle(), baseURI + this.getNewURL(),
+        return new LinkItem(this.getTitle(), baseURI + this.getURL(),
                 Utils.date2ComparableString(this.getPublishDate()));
     }
 
@@ -289,7 +372,7 @@ public class BlogEntry extends BlogEntryMeta implements Serializable, Comparable
         w.write(this.getUNID());
         w.write("\"\n");
         w.write("newURL: \"");
-        w.write(this.getNewURL());
+        w.write(this.getURL());
         w.write("\"\n");
         w.write("oldURL: \"");
         w.write(this.getOldURL());
@@ -481,26 +564,24 @@ public class BlogEntry extends BlogEntryMeta implements Serializable, Comparable
 
     }
 
-    private String getMetafileName(String fileName) {
-        boolean done = false;
-        while (!done) {
-            int lastDot = fileName.lastIndexOf(".");
-            if (lastDot < 0) {
-                done = true;
-            } else {
-                String suffix = fileName.substring(lastDot);
-                if (".json".equalsIgnoreCase(suffix)
-                        || ".html".equalsIgnoreCase(suffix)
-                        || ".more".equalsIgnoreCase(suffix)
-                        || ".md".equalsIgnoreCase(suffix)) {
-                    fileName = fileName.substring(0, lastDot);
-                } else {
-                    done = true;
-                }
-            }
+    private void addMoreBodyFromFile(final String fileName) {
+
+        final String moreFileName = fileName + ".more";
+        final File moreFile = new File(moreFileName);
+        if (!moreFile.exists()) {
+            return; // Nothing to do
         }
-        ;
-        return fileName;
+
+        try {
+            String moreContentCandidate = Files.asCharSource(moreFile, Charsets.UTF_8).read();
+            // If it isn't flagged as HTML, we convert markdown to HTML
+            if (!this.getSourceType().equals("HTML")) {
+                moreContentCandidate = MarkdownConverter.markdown2HtmlWithCode(moreContentCandidate);
+            }
+            this.setMoreBody(moreContentCandidate);
+        } catch (final IOException e) {
+            e.printStackTrace();
+        }
     }
 
     private void cleanupComments() {
@@ -515,6 +596,28 @@ public class BlogEntry extends BlogEntryMeta implements Serializable, Comparable
             }
         });
 
+    }
+
+    private String getMetafileName(String fileName) {
+        boolean done = false;
+        while (!done) {
+            final int lastDot = fileName.lastIndexOf(".");
+            if (lastDot < 0) {
+                done = true;
+            } else {
+                final String suffix = fileName.substring(lastDot);
+                if (".json".equalsIgnoreCase(suffix)
+                        || ".html".equalsIgnoreCase(suffix)
+                        || ".more".equalsIgnoreCase(suffix)
+                        || ".md".equalsIgnoreCase(suffix)) {
+                    fileName = fileName.substring(0, lastDot);
+                } else {
+                    done = true;
+                }
+            }
+        }
+        ;
+        return fileName;
     }
 
     /**

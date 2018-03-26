@@ -28,6 +28,9 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import org.yaml.snakeyaml.Yaml;
+import org.yaml.snakeyaml.constructor.Constructor;
+
 /**
  * Core class that holds all the meta Data that get loaded and saved from/to
  * Disk entries. Could be as JSON entry, could be as YAML prefix of a blog entry
@@ -36,6 +39,14 @@ import java.util.Map;
  *
  */
 public class BlogEntryMeta implements Serializable {
+    
+    public static BlogEntryMeta loadFromYaml(final String yamlString) {
+        BlogEntryMeta result;        
+        Constructor constructor = new Constructor(BlogEntryMeta.class);
+        Yaml yaml = new Yaml( constructor );
+        result = yaml.loadAs(yamlString, BlogEntryMeta.class);
+        return result;
+    }
 
     private static final long serialVersionUID = 1L;
     private String            author;
@@ -54,6 +65,7 @@ public class BlogEntryMeta implements Serializable {
     public BlogEntryMeta() {
         // Bean constuctor
     }
+    
 
     // Constructor to dump meta data to disk
     public BlogEntryMeta(BlogEntry be) {
@@ -65,7 +77,7 @@ public class BlogEntryMeta implements Serializable {
         this.title = be.getTitle();
         this.series = be.getSeries();
         this.UNID = be.getUNID();
-        this.newURL = be.getNewURL();
+        this.newURL = be.getURL();
         this.oldURL = be.getOldURL();
         this.commentsclosed = be.getCommentsclosed();
         this.setSourceType(be.getSourceType());
@@ -73,18 +85,18 @@ public class BlogEntryMeta implements Serializable {
     
     public Map<String, Object> asMap() {
         Map<String, Object> result = new HashMap<>();
-        result.put("Author",this.getAuthor());
-        result.put("Category",this.getCategory());
-        result.put("PublishDate",this.getPublishDate());
-        result.put("Location",this.getLocation());
-        result.put("Status",this.getStatus());
-        result.put("Title",this.getTitle());
-        result.put("Series",this.getSeries());
+        result.put("author",this.getAuthor());
+        result.put("category",this.getCategory());
+        result.put("publishDate",this.getPublishDate());
+        result.put("location",this.getLocation());
+        result.put("status",this.getStatus());
+        result.put("title",this.getTitle());
+        result.put("series",this.getSeries());
         result.put("UNID",this.getUNID());
-        result.put("URL",this.getNewURL());
+        result.put("URL",this.getURL());
         result.put("oldURL",this.getOldURL());
         result.put("commentsclosed",this.getCommentsclosed());
-        result.put("SourceType",this.getSourceType());
+        result.put("sourceType",this.getSourceType());
         return result;
     }
 
@@ -107,7 +119,7 @@ public class BlogEntryMeta implements Serializable {
         return this.location;
     }
 
-    public String getNewURL() {
+    public String getURL() {
         return this.newURL;
     }
 
@@ -151,7 +163,7 @@ public class BlogEntryMeta implements Serializable {
         this.location = location;
     }
 
-    public void setNewURL(final String newURL) {
+    public void setURL(final String newURL) {
         this.newURL = newURL;
     }
 

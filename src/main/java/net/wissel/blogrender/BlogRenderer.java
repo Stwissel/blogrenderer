@@ -58,7 +58,8 @@ public class BlogRenderer {
 
         System.out.println("\n\n *************** Loading JSON from disk ********************\n\n");
         // Must be called with true to get started
-        bm.loadBlogFromDisk();
+        final boolean useBlogYamlFormat = true;
+        bm.loadBlogFromDisk(useBlogYamlFormat);
         System.out.println("\n\n ***************** Rendering to disk ***********************\n\n");
         bm.renderBlog();
         final Date end = new Date();
@@ -133,7 +134,7 @@ public class BlogRenderer {
      * @param sourceFileOrDirName
      * @throws IOException
      */
-    public void loadBlogFromDisk() throws IOException {
+    public void loadBlogFromDisk(final boolean useYamlFormat) throws IOException {
         final File srcDir = new File(this.config.sourceDirectory);
         if (!srcDir.exists()) {
             System.err.print(this.config.sourceDirectory + " doesn't exist!");
@@ -144,7 +145,7 @@ public class BlogRenderer {
         }
 
         final String path = srcDir.getPath();
-        this.loadBlogEntriesFromDisk(path + this.getConfig().documentDirectory);
+        this.loadBlogEntriesFromDisk(path + this.getConfig().documentDirectory, useYamlFormat);
         System.out.println("\n\nBlog loaded from disk");
         this.loadFileDefinitionsFromDisk(path);
         System.out.println("\n\nFile definitions loaded from disk");
@@ -179,7 +180,7 @@ public class BlogRenderer {
             // String key = this.config.plinkPrefix +
             // be.getOldURL().toLowerCase();
             final String key = String.valueOf(be.getOldURL()).toLowerCase();
-            final String value = be.getNewURL();
+            final String value = be.getURL();
             if (!"null".equals(key)) {
                 this.mapperOldNewURLs.put(key, value);
             }
@@ -221,14 +222,14 @@ public class BlogRenderer {
                 final TreeMap<String, LinkItem> c = this.allSeries.containsKey(series) ? this.allSeries.get(series)
                         : new TreeMap<String, LinkItem>();
                 // We sort categories reverse
-                catItem = new LinkItem(be.getTitle(), this.config.webBlogLocation + be.getNewURL(),
+                catItem = new LinkItem(be.getTitle(), this.config.webBlogLocation + be.getURL(),
                         Utils.date2ComparableString(be.getPublishDate()), true);
-                c.put(be.getNewURL(), catItem);
+                c.put(be.getURL(), catItem);
 
                 this.allSeries.put(series, c);
             }
 
-            System.out.println(be.getNewURL());
+            System.out.println(be.getURL());
         }
     }
 
@@ -328,9 +329,9 @@ public class BlogRenderer {
     }
 
     private void cleanupOneBlogEntry(final BlogEntry be) {
-        be.setMainBody(this.cleanupHTMLlinksAndImages(be.getMainBody(), be.getNewURL()));
+        be.setMainBody(this.cleanupHTMLlinksAndImages(be.getMainBody(), be.getURL()));
         if ((be.getMoreBody() != null) && !be.getMoreBody().equals("")) {
-            be.setMoreBody(this.cleanupHTMLlinksAndImages(be.getMoreBody(), be.getNewURL()));
+            be.setMoreBody(this.cleanupHTMLlinksAndImages(be.getMoreBody(), be.getURL()));
         }
     }
 
@@ -379,7 +380,7 @@ public class BlogRenderer {
      * @param sourceFileOrDirName
      * @throws IOException
      */
-    private void loadBlogEntriesFromDisk(final String sourceFileOrDirName) {
+    private void loadBlogEntriesFromDisk(final String sourceFileOrDirName, final boolean useYamlFormat) {
         final File srcDir = new File(sourceFileOrDirName);
         if (!srcDir.exists()) {
             System.err.print(sourceFileOrDirName + " doesn't exist");
@@ -389,14 +390,19 @@ public class BlogRenderer {
         if (srcDir.isDirectory()) {
             // Recursive call to get files in directory structure
             for (final String curFile : srcDir.list()) {
-                this.loadBlogEntriesFromDisk(srcDir.getPath() + "/" + curFile);
+                this.loadBlogEntriesFromDisk(srcDir.getPath() + "/" + curFile, useYamlFormat);
             }
 
-        } else if (srcDir.getName().endsWith(".json")) {
+        } else if ((!useYamlFormat && srcDir.getName().endsWith(".json"))
+                || (useYamlFormat && srcDir.getName().endsWith(".blog"))) {
             BlogEntry be = null;
             try {
                 final FileInputStream in = new FileInputStream(new File(sourceFileOrDirName));
-                be = BlogEntry.loadDataFromJson(in, sourceFileOrDirName, this.config);
+                if (useYamlFormat) {
+                    be = BlogEntry.loadDataFromBlog(in, sourceFileOrDirName, this.config);
+                } else {
+                    be = BlogEntry.loadDataFromJson(in, sourceFileOrDirName, this.config);
+                }
                 in.close();
             } catch (final Exception e) {
                 e.printStackTrace();
@@ -405,8 +411,6 @@ public class BlogRenderer {
                 this.addBlogContext(be);
             }
 
-        } else if (srcDir.getName().endsWith(".blog")) {
-            // Blog entry in YAML/HTML or YAML/Markdown format
         }
 
     }
@@ -710,7 +714,7 @@ public class BlogRenderer {
 
     private void renderOneEntry(final BlogEntry be, final Mustache mustache) throws IOException {
 
-        final String location = this.config.destinationDirectory + be.getNewURL();
+        final String location = this.config.destinationDirectory + be.getURL();
         final String outDirs = location.substring(0, location.lastIndexOf("/"));
         final File dirs = new File(outDirs);
         if (!dirs.exists()) {
@@ -727,7 +731,7 @@ public class BlogRenderer {
         if (be.getSeries() != null) {
             final String series = be.getSeries();
             if (this.allSeries.containsKey(series)) {
-                this.allSeries.get(series).get(be.getNewURL()).active = true;
+                this.allSeries.get(series).get(be.getURL()).active = true;
             }
         }
 
@@ -752,7 +756,7 @@ public class BlogRenderer {
         if (be.getSeries() != null) {
             final String series = be.getSeries();
             if (this.allSeries.containsKey(series)) {
-                this.allSeries.get(series).get(be.getNewURL()).active = false;
+                this.allSeries.get(series).get(be.getURL()).active = false;
             }
         }
     }
@@ -929,9 +933,9 @@ public class BlogRenderer {
 
     private void saveBlogEntry(final BlogEntry be, final String wheretoSave) throws IOException {
 
-        System.out.println(be.getNewURL());
+        System.out.println(be.getURL());
 
-        final String location = wheretoSave + be.getNewURL() + ".json";
+        final String location = wheretoSave + be.getURL() + ".json";
         final File outFile = new File(location);
         if (outFile.exists()) {
             outFile.delete();

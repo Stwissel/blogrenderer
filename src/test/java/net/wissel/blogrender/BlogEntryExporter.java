@@ -27,7 +27,7 @@ public class BlogEntryExporter {
     private void runExport() throws IOException {
         final Config config = Config.get(Config.CONFIG_NAME);
         final BlogRenderer br = new BlogRenderer(config);
-        br.loadBlogFromDisk();
+        br.loadBlogFromDisk(false);
         final DumperOptions options = new DumperOptions();
         options.setPrettyFlow(true);
         options.setAllowUnicode(true);
@@ -35,7 +35,8 @@ public class BlogEntryExporter {
         options.setDefaultFlowStyle(FlowStyle.BLOCK);
 
         final Yaml yaml = new Yaml(options);
-        final Iterator<BlogEntry> iter = br.getTheBlog().iterator();
+        final Iterator<BlogEntry> iter = br.getTheBlog().descendingIterator();
+     
 
         // while (iter.hasNext()) {
         for (int i = 0; i < 5; i++) {
