@@ -39,36 +39,36 @@ import org.yaml.snakeyaml.constructor.Constructor;
  *
  */
 public class BlogEntryMeta implements Serializable {
-    
-    public static BlogEntryMeta loadFromYaml(final String yamlString) {
-        BlogEntryMeta result;        
-        Constructor constructor = new Constructor(BlogEntryMeta.class);
-        Yaml yaml = new Yaml( constructor );
+
+    private static final long serialVersionUID = 1L;
+
+    public static BlogEntryMeta loadMetaFromYaml(final String yamlString) {
+        BlogEntryMeta result;
+        final Constructor constructor = new Constructor(BlogEntryMeta.class);
+        final Yaml yaml = new Yaml(constructor);
         result = yaml.loadAs(yamlString, BlogEntryMeta.class);
         return result;
     }
 
-    private static final long serialVersionUID = 1L;
-    private String            author;
-    private List<String>      category         = new ArrayList<String>();
-    private Date              publishDate      = new Date();
-    private String            location;
-    private String            status;
-    private String            title;
-    private String            series           = null;
-    private String            UNID;
-    private String            newURL;
-    private String            oldURL;
-    private Boolean           commentsclosed   = false;
-    private String            sourceType;
+    private String       author;
+    private List<String> category       = new ArrayList<String>();
+    private Date         publishDate    = new Date();
+    private String       location;
+    private String       status;
+    private String       title;
+    private String       series         = null;
+    private String       UNID;
+    private String       newURL;
+    private String       oldURL;
+    private Boolean      commentsclosed = false;
+    private String       sourceType;
 
     public BlogEntryMeta() {
         // Bean constuctor
     }
-    
 
     // Constructor to dump meta data to disk
-    public BlogEntryMeta(BlogEntry be) {
+    public BlogEntryMeta(final BlogEntry be) {
         this.setAuthor(be.getAuthor());
         this.category.addAll(be.getCategory());
         this.publishDate = be.getPublishDate();
@@ -82,21 +82,21 @@ public class BlogEntryMeta implements Serializable {
         this.commentsclosed = be.getCommentsclosed();
         this.setSourceType(be.getSourceType());
     }
-    
+
     public Map<String, Object> asMap() {
-        Map<String, Object> result = new HashMap<>();
-        result.put("author",this.getAuthor());
-        result.put("category",this.getCategory());
-        result.put("publishDate",this.getPublishDate());
-        result.put("location",this.getLocation());
-        result.put("status",this.getStatus());
-        result.put("title",this.getTitle());
-        result.put("series",this.getSeries());
-        result.put("UNID",this.getUNID());
-        result.put("URL",this.getURL());
-        result.put("oldURL",this.getOldURL());
-        result.put("commentsclosed",this.getCommentsclosed());
-        result.put("sourceType",this.getSourceType());
+        final Map<String, Object> result = new HashMap<>();
+        this.nonNullMapEntry(result, "Author", this.getAuthor());
+        this.nonNullMapEntry(result, "Category", this.getCategory());
+        this.nonNullMapEntry(result, "PublishDate", this.getPublishDate());
+        this.nonNullMapEntry(result, "Location", this.getLocation());
+        this.nonNullMapEntry(result, "Status", this.getStatus());
+        this.nonNullMapEntry(result, "Title", this.getTitle());
+        this.nonNullMapEntry(result, "Series", this.getSeries());
+        this.nonNullMapEntry(result, "UNID", this.getUNID());
+        this.nonNullMapEntry(result, "URL", this.getURL());
+        this.nonNullMapEntry(result, "oldURL", this.getOldURL());
+        this.nonNullMapEntry(result, "commentsclosed", this.getCommentsclosed());
+        this.nonNullMapEntry(result, "SourceType", this.getSourceType());
         return result;
     }
 
@@ -119,10 +119,6 @@ public class BlogEntryMeta implements Serializable {
         return this.location;
     }
 
-    public String getURL() {
-        return this.newURL;
-    }
-
     public String getOldURL() {
         return this.oldURL;
     }
@@ -135,6 +131,13 @@ public class BlogEntryMeta implements Serializable {
         return this.series;
     }
 
+    /**
+     * @return the blogSourceType
+     */
+    public String getSourceType() {
+        return this.sourceType;
+    }
+
     public String getStatus() {
         return this.status;
     }
@@ -145,6 +148,10 @@ public class BlogEntryMeta implements Serializable {
 
     public String getUNID() {
         return this.UNID;
+    }
+
+    public String getURL() {
+        return this.newURL;
     }
 
     public void setAuthor(final String author) {
@@ -163,10 +170,6 @@ public class BlogEntryMeta implements Serializable {
         this.location = location;
     }
 
-    public void setURL(final String newURL) {
-        this.newURL = newURL;
-    }
-
     public void setOldURL(final String oldURL) {
         this.oldURL = oldURL;
     }
@@ -177,6 +180,14 @@ public class BlogEntryMeta implements Serializable {
 
     public void setSeries(final String series) {
         this.series = series;
+    }
+
+    /**
+     * @param blogSourceType
+     *            the blogSourceType to set
+     */
+    public void setSourceType(final String blogSourceType) {
+        this.sourceType = ("M".equalsIgnoreCase(String.valueOf(blogSourceType).substring(0, 1))) ? "MARKDOWN" : "HTML";
     }
 
     public void setStatus(final String status) {
@@ -191,19 +202,15 @@ public class BlogEntryMeta implements Serializable {
         this.UNID = uNID;
     }
 
-    /**
-     * @return the blogSourceType
-     */
-    public String getSourceType() {
-        return this.sourceType;
+    public void setURL(final String newURL) {
+        this.newURL = newURL;
     }
 
-    /**
-     * @param blogSourceType
-     *            the blogSourceType to set
-     */
-    public void setSourceType(String blogSourceType) {
-        this.sourceType = ("M".equalsIgnoreCase(String.valueOf(blogSourceType).substring(0,1))) ? "MARKDOWN" : "HTML";
+    private void nonNullMapEntry(final Map<String, Object> target, final String key, final Object value) {
+        if ((key == null) || (value == null) || String.valueOf(value).equals("")) {
+            return;
+        }
+        target.put(key, value);
     }
 
 }
