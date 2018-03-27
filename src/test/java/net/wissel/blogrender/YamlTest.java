@@ -23,7 +23,6 @@ package net.wissel.blogrender;
 
 import java.io.File;
 import java.io.FileInputStream;
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.util.Iterator;
@@ -65,9 +64,8 @@ public class YamlTest {
         options.setExplicitStart(true);
         // options.setExplicitEnd(true);
         final PrintStream pw = System.out;
-        final BlogEntryMeta bc = new BlogEntryMeta(be);
         final Yaml yaml = new Yaml(options);
-        pw.println(yaml.dumpAs(bc, Tag.MAP, FlowStyle.BLOCK));
+        pw.println(yaml.dumpAs(be.asMap(), Tag.MAP, FlowStyle.BLOCK));
         pw.println(Config.get(Config.CONFIG_NAME).MARKDOW_SEPARATOR);
         
     }
@@ -88,8 +86,7 @@ public class YamlTest {
         // for (int i = 0; i < 5; i++) {
         while (iter.hasNext()) {
             final BlogEntry be = iter.next();
-            final BlogEntryMeta bc = new BlogEntryMeta(be);
-            pw.println(yaml.dumpAs(bc, Tag.MAP, FlowStyle.BLOCK));
+             pw.println(yaml.dumpAs(be.asMap(), Tag.MAP, FlowStyle.BLOCK));
             pw.println(config.MARKDOW_SEPARATOR);
             pw.println(Files.asCharSource(new File(be.sourceFileName), Charsets.UTF_8).read());
         }

@@ -31,6 +31,7 @@ import java.io.OutputStream;
 import java.io.PrintWriter;
 import java.io.Serializable;
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Date;
@@ -41,12 +42,17 @@ import java.util.Scanner;
 import java.util.Set;
 import java.util.TreeSet;
 
+import org.yaml.snakeyaml.DumperOptions;
+import org.yaml.snakeyaml.DumperOptions.FlowStyle;
+import org.yaml.snakeyaml.Yaml;
+import org.yaml.snakeyaml.nodes.Tag;
+
 import com.google.common.base.Charsets;
 import com.google.common.io.Files;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 
-public class BlogEntry extends BlogEntryMeta implements Serializable, Comparable<BlogEntry> {
+public class BlogEntry implements Serializable, Comparable<BlogEntry> {
 
     public static final String NEWLINE = System.getProperty("line.separator");
 
@@ -60,8 +66,10 @@ public class BlogEntry extends BlogEntryMeta implements Serializable, Comparable
         final Scanner scanner = new Scanner(in);
         final StringBuilder yaml = new StringBuilder();
         final StringBuilder rawBody = new StringBuilder();
+        final StringBuilder rawMore = new StringBuilder();
         boolean firstLine = true;
         boolean yamlDone = false;
+        boolean inMoreBody = false;
         while (scanner.hasNextLine()) {
             final String curLine = scanner.nextLine();
             if (firstLine) {
@@ -78,15 +86,24 @@ public class BlogEntry extends BlogEntryMeta implements Serializable, Comparable
                     if (config.MARKDOW_SEPARATOR.equals(curLine)) {
                         yamlDone = true;
                         // Now we create the blog entry
-                        result = BlogEntry.fromMeta(BlogEntryMeta.loadFromYaml(yaml.toString()));
+                        result = BlogEntry.loadMetaFromYaml(yaml.toString());
                     } else {
                         yaml.append(curLine);
                     }
                     yaml.append(System.lineSeparator());
                 } else {
-                    // Raw content
-                    rawBody.append(curLine);
-                    rawBody.append(System.lineSeparator());
+                    // Raw content - could be mainBody or moreBody
+                    if (config.MARKDOW_SEPARATOR.equals(curLine)) {
+                        inMoreBody = true;
+                    } else {
+                        if (inMoreBody) {
+                            rawBody.append(curLine);
+                            rawBody.append(System.lineSeparator());
+                        } else {
+                            rawMore.append(curLine);
+                            rawMore.append(System.lineSeparator());
+                        }
+                    }
                 }
             }
 
@@ -97,12 +114,16 @@ public class BlogEntry extends BlogEntryMeta implements Serializable, Comparable
         if (result != null) {
             if ("HTML".equals(result.getSourceType())) {
                 result.setMainBody(rawBody.toString());
+                if (rawMore.length() > 0) {
+                    result.setMoreBody(rawMore.toString());
+                }
             } else {
                 result.setMainBody(MarkdownConverter.markdown2HtmlWithCode(rawBody.toString()));
+                if (rawMore.length() > 0) {
+                    result.setMoreBody(MarkdownConverter.markdown2HtmlWithCode(rawMore.toString()));
+                }
             }
-            if (fileName != null) {
-                result.addMoreBodyFromFile(fileName);
-            }
+
         }
         // Load new Comments
         result.loadCommentsFromDisk(config);
@@ -126,22 +147,97 @@ public class BlogEntry extends BlogEntryMeta implements Serializable, Comparable
         return result;
     }
 
-    private static BlogEntry fromMeta(final BlogEntryMeta be) {
-       BlogEntry result = new BlogEntry();
-       result.setAuthor(be.getAuthor());
-       result.setCategory(be.getCategory());
-       result.setPublishDate(be.getPublishDate());
-       result.setLocation(be.getLocation());
-       result.setStatus(be.getStatus());
-       result.setTitle(be.getTitle());
-       result.setSeries(be.getSeries());
-       result.setUNID(be.getUNID());
-       result.setURL(be.getURL());
-       result.setOldURL(be.getOldURL());
-       result.setCommentsclosed(be.getCommentsclosed());
-       result.setSourceType((be.getSourceType()));
-       return result;
+    // Meta Data
+    @SuppressWarnings("unchecked")
+    private static BlogEntry loadMetaFromYaml(final String yamlString) {
+        final BlogEntry result = new BlogEntry();
+        // FIXME: that doesn't work!
+        // final Constructor constructor = new Constructor(BlogEntry.class);
+        final Yaml yaml = new Yaml();
+        final Map<String, Object> meta = yaml.load(yamlString);
+        meta.forEach((keyCandidate, value) -> {
+            final String key = String.valueOf(keyCandidate).toLowerCase();
+            final String valueString = String.valueOf(value);
+            if ((value != null) && !("".equals(valueString)) && !("null".equals(valueString))) {
+                // TODO: accept alternate keys DocPad format (eventually)
+                switch (key) {
+                    case "author":
+                        result.setAuthor(valueString);
+                        break;
+
+                    case "category":
+                        result.setCategory((List<String>) value);
+                        break;
+
+                    case "publishdate":
+                        result.setPublishDate((Date) value);
+                        break;
+
+                    case "location":
+                        result.setLocation(valueString);
+                        break;
+
+                    case "status":
+                        result.setStatus(valueString);
+                        break;
+
+                    case "title":
+                        result.setTitle(valueString);
+                        break;
+
+                    case "series":
+                        result.setSeries(valueString);
+                        break;
+
+                    case "unid":
+                        result.setUNID(valueString);
+                        break;
+
+                    case "url":
+                        result.setURL(valueString);
+                        break;
+
+                    case "oldurl":
+                        result.setOldURL(valueString);
+                        break;
+
+                    case "commentsclosed":
+                        result.setCommentsclosed(Boolean.valueOf(valueString));
+                        break;
+
+                    case "sourcetype":
+                        final String firstLetter = valueString.substring(0, 1).toLowerCase();
+                        if ("h".equals(firstLetter)) {
+                            result.setSourceType("HTML");
+                        } else if ("m".equalsIgnoreCase(firstLetter)) {
+                            result.setSourceType("MARKDOWN");
+                        } else {
+                            // For people who can't spell
+                            result.setSourceType(valueString);
+                        }
+                        break;
+
+                    default:
+                        System.err.println("Unknown key encountered (ignoring):" + String.valueOf(keyCandidate));
+                        break;
+                }
+            }
+        });
+        return result;
     }
+
+    private String       author;
+    private List<String> category       = new ArrayList<String>();
+    private Date         publishDate    = new Date();
+    private String       location;
+    private String       status;
+    private String       title;
+    private String       series         = null;
+    private String       UNID;
+    private String       URL;
+    private String       oldURL;
+    private Boolean      commentsclosed = false;
+    private String       sourceType;
 
     // The HTML representation
     private String mainBody = null;
@@ -177,6 +273,23 @@ public class BlogEntry extends BlogEntryMeta implements Serializable, Comparable
         this.getCategory().add(cat2add);
     }
 
+    public Map<String, Object> asMap() {
+        final Map<String, Object> result = new HashMap<>();
+        this.nonNullMapEntry(result, "Author", this.getAuthor());
+        this.nonNullMapEntry(result, "Category", this.getCategory());
+        this.nonNullMapEntry(result, "PublishDate", this.getPublishDate());
+        this.nonNullMapEntry(result, "Location", this.getLocation());
+        this.nonNullMapEntry(result, "Status", this.getStatus());
+        this.nonNullMapEntry(result, "Title", this.getTitle());
+        this.nonNullMapEntry(result, "Series", this.getSeries());
+        this.nonNullMapEntry(result, "UNID", this.getUNID());
+        this.nonNullMapEntry(result, "URL", this.getURL());
+        this.nonNullMapEntry(result, "oldURL", this.getOldURL());
+        this.nonNullMapEntry(result, "commentsclosed", this.getCommentsclosed());
+        this.nonNullMapEntry(result, "SourceType", this.getSourceType());
+        return result;
+    }
+
     @Override
     public int compareTo(final BlogEntry be) {
         // TODO: Do we need to add the name?
@@ -206,6 +319,14 @@ public class BlogEntry extends BlogEntryMeta implements Serializable, Comparable
      */
     public Collection<LinkItem> getAllDateCategories() {
         return this.allDateCategories;
+    };
+
+    public String getAuthor() {
+        return this.author;
+    }
+
+    public List<String> getCategory() {
+        return this.category;
     }
 
     public String getCommentCount() {
@@ -213,7 +334,7 @@ public class BlogEntry extends BlogEntryMeta implements Serializable, Comparable
             return "0";
         }
         return Integer.toHexString(this.comments.size());
-    };
+    }
 
     /**
      * @return the comments
@@ -222,6 +343,10 @@ public class BlogEntry extends BlogEntryMeta implements Serializable, Comparable
         final Set<BlogComments> result = new TreeSet<BlogComments>();
         result.addAll(this.comments.values());
         return result;
+    }
+
+    public Boolean getCommentsclosed() {
+        return this.commentsclosed;
     }
 
     /**
@@ -276,6 +401,13 @@ public class BlogEntry extends BlogEntryMeta implements Serializable, Comparable
                 Utils.date2ComparableString(this.getPublishDate()));
     }
 
+    public String getLocation() {
+        if ((this.location == null) || this.location.trim().equals("")) {
+            this.setLocation("Singapore");
+        }
+        return this.location;
+    }
+
     /**
      * @return the mainBody
      */
@@ -297,11 +429,19 @@ public class BlogEntry extends BlogEntryMeta implements Serializable, Comparable
         return this.nextItem;
     }
 
+    public String getOldURL() {
+        return this.oldURL;
+    }
+
     /**
      * @return the previousItem
      */
     public LinkItem getPreviousItem() {
         return this.previousItem;
+    }
+
+    public Date getPublishDate() {
+        return this.publishDate;
     }
 
     public String getPublishDateString() {
@@ -312,6 +452,10 @@ public class BlogEntry extends BlogEntryMeta implements Serializable, Comparable
     public String getPublishDateStringShort() {
         final SimpleDateFormat sdf = new SimpleDateFormat("MMMM yyyy");
         return sdf.format(this.getPublishDate());
+    }
+
+    public String getSeries() {
+        return this.series;
     }
 
     public Collection<LinkItem> getSeriesMember() {
@@ -328,64 +472,52 @@ public class BlogEntry extends BlogEntryMeta implements Serializable, Comparable
         return this.shortDate;
     }
 
+    /**
+     * @return the blogSourceType
+     */
+    public String getSourceType() {
+        return this.sourceType;
+    }
+
+    public String getStatus() {
+        return this.status;
+    }
+
+    public String getTitle() {
+        return this.title;
+    }
+
+    public String getUNID() {
+        return this.UNID;
+    }
+
+    public String getURL() {
+        return this.URL;
+    }
+
     public boolean isBlog() {
         return this.isBlog;
     }
 
-    public void saveDatatoDocPad(final FileOutputStream out) {
-        // TODO Saves content to DocPad format
-        final PrintWriter w = new PrintWriter(out);
-        // Parameter separator
-        w.write("---");
-        w.write(BlogEntry.NEWLINE);
-        w.write("layout: default");
-        w.write(BlogEntry.NEWLINE);
-        w.write("author: \"");
-        w.write(this.getAuthor());
-        w.write("\"\n");
-        w.write("category: [");
-        for (int i = 0; i < this.getCategory().size(); i++) {
-            if (i > 0) {
-                w.write(", ");
-            }
-            w.write("\"");
-            w.write(this.getCategory().get(i));
-            w.write("\"");
+    public void saveBlogEntry(final Config config, final FileOutputStream out) {
+        final PrintWriter pw = new PrintWriter(out);
+
+        final DumperOptions options = new DumperOptions();
+        options.setPrettyFlow(true);
+        options.setAllowUnicode(true);
+        options.setExplicitStart(true);
+        final Yaml yaml = new Yaml(options);
+        pw.println(config.MARKDOW_SEPARATOR);
+        pw.println(yaml.dumpAs(this.asMap(), Tag.MAP, FlowStyle.BLOCK));
+        pw.println(config.MARKDOW_SEPARATOR);
+        pw.println(this.getMainBody());
+        if (!this.getMainBody().isEmpty()) {
+            pw.println(config.MARKDOW_SEPARATOR);
+            pw.println(this.getMoreBody());
         }
-        w.write("]\n");
-        w.write("publishDate: \"");
-        w.write(this.getPublishDateString());
-        w.write("\"\n");
-        w.write("dateForArchive: \"");
-        w.write(this.getPublishDateStringShort());
-        w.write("\"\n");
-        w.write("location: \"");
-        w.write(this.getLocation());
-        w.write("\"\n");
-        w.write("status: \"");
-        w.write(this.getStatus());
-        w.write("\"\n");
-        w.write("title: \"");
-        w.write(this.getTitle());
-        w.write("\"\n");
-        w.write("UNID: \"");
-        w.write(this.getUNID());
-        w.write("\"\n");
-        w.write("newURL: \"");
-        w.write(this.getURL());
-        w.write("\"\n");
-        w.write("oldURL: \"");
-        w.write(this.getOldURL());
-        w.write("\"\n");
-        w.write("---");
-        w.write(BlogEntry.NEWLINE);
-        w.write(this.getMainBody());
-        if ((this.getMoreBody() != null) && !this.getMainBody().trim().equals("")) {
-            w.write(this.getMainBody());
-        }
-        w.write(BlogEntry.NEWLINE);
-        w.flush();
-        w.close();
+
+        pw.flush();
+        pw.close();
     }
 
     /**
@@ -418,6 +550,14 @@ public class BlogEntry extends BlogEntryMeta implements Serializable, Comparable
         this.allDateCategories = allDateCategories;
     }
 
+    public void setAuthor(final String author) {
+        this.author = author;
+    }
+
+    public void setCategory(final List<String> category) {
+        this.category = category;
+    }
+
     /**
      * @param comments
      *            the comments to set
@@ -427,6 +567,14 @@ public class BlogEntry extends BlogEntryMeta implements Serializable, Comparable
         comments.forEach(comment -> {
             this.comments.put(comment.getUNID(), comment);
         });
+    }
+
+    public void setCommentsclosed(final Boolean commentsclosed) {
+        this.commentsclosed = commentsclosed;
+    }
+
+    public void setLocation(final String location) {
+        this.location = location;
     }
 
     /**
@@ -466,6 +614,10 @@ public class BlogEntry extends BlogEntryMeta implements Serializable, Comparable
         this.nextItem = nextItem;
     }
 
+    public void setOldURL(final String oldURL) {
+        this.oldURL = oldURL;
+    }
+
     /**
      * @param previousItem
      *            the previousItem to set
@@ -478,17 +630,44 @@ public class BlogEntry extends BlogEntryMeta implements Serializable, Comparable
      * @param publishDate
      *            the publishDate to set
      */
-    @Override
     public void setPublishDate(final Date publishDate) {
-        super.setPublishDate(publishDate);
+        this.publishDate = publishDate;
         this.shortDate = this.getPublishDateString();
         this.dateCategory = this.getPublishDateStringShort();
+    }
+
+    public void setSeries(final String series) {
+        this.series = series;
     }
 
     public void setSeriesMember(final List<LinkItem> seriesMember) {
         Collections.sort(seriesMember);
         Collections.reverse(seriesMember);
         this.seriesMember = seriesMember;
+    }
+
+    /**
+     * @param blogSourceType
+     *            the blogSourceType to set
+     */
+    public void setSourceType(final String blogSourceType) {
+        this.sourceType = ("M".equalsIgnoreCase(String.valueOf(blogSourceType).substring(0, 1))) ? "MARKDOWN" : "HTML";
+    }
+
+    public void setStatus(final String status) {
+        this.status = status;
+    }
+
+    public void setTitle(final String title) {
+        this.title = title;
+    }
+
+    public void setUNID(final String uNID) {
+        this.UNID = uNID;
+    }
+
+    public void setURL(final String newURL) {
+        this.URL = newURL;
     }
 
     @Override
@@ -564,26 +743,6 @@ public class BlogEntry extends BlogEntryMeta implements Serializable, Comparable
 
     }
 
-    private void addMoreBodyFromFile(final String fileName) {
-
-        final String moreFileName = fileName + ".more";
-        final File moreFile = new File(moreFileName);
-        if (!moreFile.exists()) {
-            return; // Nothing to do
-        }
-
-        try {
-            String moreContentCandidate = Files.asCharSource(moreFile, Charsets.UTF_8).read();
-            // If it isn't flagged as HTML, we convert markdown to HTML
-            if (!this.getSourceType().equals("HTML")) {
-                moreContentCandidate = MarkdownConverter.markdown2HtmlWithCode(moreContentCandidate);
-            }
-            this.setMoreBody(moreContentCandidate);
-        } catch (final IOException e) {
-            e.printStackTrace();
-        }
-    }
-
     private void cleanupComments() {
         this.comments.forEach((key, entry) -> {
             final String candidate = entry.getComment();
@@ -636,5 +795,12 @@ public class BlogEntry extends BlogEntryMeta implements Serializable, Comparable
             }
         }
 
+    }
+
+    private void nonNullMapEntry(final Map<String, Object> target, final String key, final Object value) {
+        if ((key == null) || (value == null) || String.valueOf(value).equals("")) {
+            return;
+        }
+        target.put(key, value);
     }
 }
