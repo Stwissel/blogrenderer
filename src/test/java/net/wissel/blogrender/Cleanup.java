@@ -35,7 +35,7 @@ public class Cleanup {
             this.deleteEntries.forEach(e -> {
                 if (curDir.getName().endsWith(e)) {
                     System.out.print(curDir.getName());
-                    //curDir.delete();
+                    curDir.delete();
                     System.out.println(" - deleted");
                 }
             });

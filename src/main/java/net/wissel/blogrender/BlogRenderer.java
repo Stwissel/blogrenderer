@@ -550,6 +550,7 @@ public class BlogRenderer {
 
         // Blog entries
         for (final BlogEntry be : this.theBlog) {
+            be.cleanupComments();
             be.setAllCategories(this.allCategories.values());
             be.setAllDateCategories(this.allDateCategories.descendingMap().values());
 

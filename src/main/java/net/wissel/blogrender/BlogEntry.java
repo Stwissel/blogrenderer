@@ -125,9 +125,6 @@ public class BlogEntry implements Serializable, Comparable<BlogEntry> {
             }
 
         }
-        // Load new Comments
-        result.loadCommentsFromDisk(config);
-        result.cleanupComments();
         return result;
     }
 
@@ -750,7 +747,7 @@ public class BlogEntry implements Serializable, Comparable<BlogEntry> {
 
     }
 
-    private void cleanupComments() {
+    public BlogEntry cleanupComments() {
         this.comments.forEach((key, entry) -> {
             final String candidate = entry.getComment();
             final int startpos = candidate.indexOf("<body>");
@@ -761,7 +758,7 @@ public class BlogEntry implements Serializable, Comparable<BlogEntry> {
                 entry.setComment(result);
             }
         });
-
+        return this;
     }
 
     private String getMetafileName(String fileName) {
