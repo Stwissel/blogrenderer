@@ -3,18 +3,14 @@
  */
 package net.wissel.blogrender;
 
-import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
 import java.io.PrintWriter;
 import java.io.Writer;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -33,8 +29,6 @@ import org.jsoup.select.Elements;
 import com.github.mustachejava.DefaultMustacheFactory;
 import com.github.mustachejava.Mustache;
 import com.github.mustachejava.MustacheFactory;
-import com.google.common.io.ByteStreams;
-import com.google.common.io.Closeables;
 import com.google.common.io.Files;
 
 import net.wissel.blogrender.EntriesWithFiles.FileEntry;
@@ -77,7 +71,7 @@ public class BlogRenderer {
     private final TreeMap<String, TreeMap<String, LinkItem>> allSeries = new TreeMap<String, TreeMap<String, LinkItem>>();
 
     private final TreeSet<BlogEntry> theBlog = new TreeSet<BlogEntry>();
-    
+
     private final Map<String, BlogEntry> blogById = new HashMap<>();
 
     private Config config = null;
@@ -174,14 +168,14 @@ public class BlogRenderer {
             }
 
         } else if (srcDir.getName().endsWith(".comment")) {
-            BlogComments bc =BlogComments.loadFromJson(srcDir);
+            BlogComments bc = BlogComments.loadFromJson(srcDir);
             if (bc != null) {
                 String parent = bc.getParentId();
                 if (this.blogById.containsKey(parent)) {
                     this.blogById.get(parent).addComment(bc);
                 }
             }
-            
+
         }
 
     }
@@ -475,16 +469,10 @@ public class BlogRenderer {
         this.updateMapper(this.mapperOldNewURLs, this.fileEntries);
     }
 
-    private void render404() throws IOException {
+    private void render404() {
 
         final String template = this.config.ERROR_TEMPLATE;
         final String finalDestination = this.config.destinationDirectory + this.config.errorFileName;
-
-        final ByteArrayOutputStream out = new ByteArrayOutputStream(102400);
-        final Writer pw = new PrintWriter(out);
-
-        final MustacheFactory mf = new DefaultMustacheFactory(new File(this.config.templateDirectory));
-        final Mustache mustache = mf.compile(template);
 
         final BlogIndex bi = new BlogIndex();
         bi.allCategories = this.allCategories.values();
@@ -498,34 +486,19 @@ public class BlogRenderer {
                 bi.topArticles.add(cur);
             }
         }
-
-        mustache.execute(pw, bi);
-        pw.flush();
-
-        pw.close();
-        this.saveIfChanged(out.toByteArray(), finalDestination);
+        
+        this.renderToDisk(template, finalDestination, bi);
         System.out.println("Rendered 404");
 
     }
 
-    private void renderAttachments() throws IOException {
+    private void renderAttachments() {
 
         final String template = this.config.ATTACHMENT_TEMPLATE;
         final String finalDestination = this.config.destinationDirectory + this.config.downloadDirectory
                 + this.config.indexFileName;
-        final File wohin = new File(finalDestination);
-        Files.createParentDirs(wohin);
-        final FileOutputStream out = new FileOutputStream(wohin);
-        final Writer pw = new PrintWriter(out);
-
-        final MustacheFactory mf = new DefaultMustacheFactory(new File(this.config.templateDirectory));
-        final Mustache mustache = mf.compile(template);
-        mustache.execute(pw, this.fileEntries);
-        pw.flush();
-
-        pw.close();
-        out.close();
-
+        this.renderToDisk(template, finalDestination,this.fileEntries);
+  
         System.out.println("Rendered Attachments");
 
     }
@@ -606,13 +579,7 @@ public class BlogRenderer {
 
         final String template = this.config.IMPRINT_TEMPLATE;
         final String finalDestination = this.config.destinationDirectory + this.config.imprintFileName;
-
-        final ByteArrayOutputStream out = new ByteArrayOutputStream(102400);
-        final Writer pw = new PrintWriter(out);
-
-        final MustacheFactory mf = new DefaultMustacheFactory(new File(this.config.templateDirectory));
-        final Mustache mustache = mf.compile(template);
-
+ 
         final BlogIndex bi = new BlogIndex();
         bi.allCategories = this.allCategories.values();
         bi.allDateCategories = this.allDateCategories.values();
@@ -629,25 +596,15 @@ public class BlogRenderer {
             }
         }
 
-        mustache.execute(pw, bi);
-        pw.flush();
-
-        pw.close();
-        this.saveIfChanged(out.toByteArray(), finalDestination);
+        this.renderToDisk(template, finalDestination, bi);
         System.out.println("Rendered Imprint");
 
     }
 
-    private void renderIndex() throws IOException {
+    private void renderIndex() {
 
         final String template = this.config.INDEX_TEMPLATE;
         final String finalDestination = this.config.destinationDirectory + this.config.indexFileName;
-
-        final ByteArrayOutputStream out = new ByteArrayOutputStream(102400);
-        final Writer pw = new PrintWriter(out);
-
-        final MustacheFactory mf = new DefaultMustacheFactory(new File(this.config.templateDirectory));
-        final Mustache mustache = mf.compile(template);
 
         final BlogIndex bi = new BlogIndex();
         bi.allCategories = this.allCategories.values();
@@ -664,19 +621,15 @@ public class BlogRenderer {
                 i++;
             }
         }
-
-        mustache.execute(pw, bi);
-        pw.flush();
-
-        pw.close();
-        this.saveIfChanged(out.toByteArray(), finalDestination);
+        this.renderToDisk(template, finalDestination, bi);
+       
         System.out.println("Rendered Index");
     }
 
     private void renderIndexRSS() {
         final String finalDestination = this.config.destinationDirectory + this.config.indexRSSName;
         final String finalDestination2 = this.config.destinationDirectory + this.config.indexRSSName2;
-        final ByteArrayOutputStream out = new ByteArrayOutputStream(102400);
+        final BlogOutput out = new BlogOutput(finalDestination);
         final BlogIndex bi = new BlogIndex();
         bi.allCategories = this.allCategories.values();
         bi.allDateCategories = this.allDateCategories.values();
@@ -696,12 +649,10 @@ public class BlogRenderer {
         final RSSFeedWriter rss = new RSSFeedWriter(this.getConfig(), bi);
         try {
             rss.write(out);
-            if (this.saveIfChanged(out.toByteArray(), finalDestination)
-                    || this.saveIfChanged(out.toByteArray(), finalDestination2)) {
-                System.out.println("\nRendered stories.rss and stories.xml");
-            } else {
-                System.out.println("\nRSS hasn't changed!");
-            }
+            out.flush();
+            out.close();
+            Files.copy(new File(finalDestination), new File(finalDestination2));
+            System.out.println("\nRSS updated");
 
         } catch (final Exception e) {
             System.out.println("\nstories.rss rendering failed: " + e.getMessage());
@@ -747,14 +698,10 @@ public class BlogRenderer {
 
     }
 
-    private void renderOneEntry(final BlogEntry be, final Mustache mustache) throws IOException {
+    private void renderOneEntry(final BlogEntry be, final Mustache mustache) {
 
         final String location = this.config.destinationDirectory + be.getEntryUrl();
-        final String outDirs = location.substring(0, location.lastIndexOf("/"));
-        final File dirs = new File(outDirs);
-        if (!dirs.exists()) {
-            dirs.mkdirs();
-        }
+
         // Set the current context
         for (final String catName : be.getCategory()) {
             final LinkItem cat = new LinkItem(catName);
@@ -771,15 +718,8 @@ public class BlogRenderer {
         }
 
         // Prepare to write out
-        final ByteArrayOutputStream out = new ByteArrayOutputStream(102400);
-        final Writer pw = new PrintWriter(out);
-
-        // This is where the magic happens
-        mustache.execute(pw, be);
-        pw.flush();
-        pw.close();
-        this.saveIfChanged(out.toByteArray(), location);
-
+        this.renderToDisk(mustache, location, be);
+       
         // Cleanup
         for (final String catName : be.getCategory()) {
             final LinkItem cat = new LinkItem(catName);
@@ -800,83 +740,66 @@ public class BlogRenderer {
         final String template = ri.getFinalTemplateName(this.config.templateDirectory, ri.key);
         final String finalDestination = this.config.destinationDirectory + ri.outFileName;
         boolean goodToGo = false;
-        try {
+        // Set of categories
+        if (this.allCategories.containsKey(ri.key)) {
+            this.allCategories.get(ri.key).active = true;
+        }
+        if (this.allDateCategories.containsKey(ri.key)) {
+            this.allDateCategories.get(ri.key).active = true;
+        }
 
-            // Set of categories
-            if (this.allCategories.containsKey(ri.key)) {
-                this.allCategories.get(ri.key).active = true;
+        final BlogIndex bi = new BlogIndex();
+        bi.allCategories = this.allCategories.values();
+        bi.allDateCategories = this.allDateCategories.values();
+        bi.pageTitle = ri.pageTitle;
+        bi.pageLink = ri.pageLink;
+        bi.nextItem = ri.nextItem;
+        bi.previousItem = ri.previousItem;
+
+        // The renderinstructions might have entries or categorized entries
+        // We check for null before we render
+
+        if (ri.members != null) {
+            bi.topArticles = new BlogEntryCollection(!ri.reverse);
+            // Little confusion on sorting order
+            final Iterator<BlogEntry> it = ri.members.iterator();
+            // We need to copy from the render instruction to get the
+            // sequence reversed
+            while (it.hasNext()) {
+                final BlogEntry cur = it.next();
+                if (cur.getStatus().equals("Published")) {
+                    bi.topArticles.add(cur);
+                }
             }
-            if (this.allDateCategories.containsKey(ri.key)) {
-                this.allDateCategories.get(ri.key).active = true;
-            }
-
-            final BlogIndex bi = new BlogIndex();
-            bi.allCategories = this.allCategories.values();
-            bi.allDateCategories = this.allDateCategories.values();
-            bi.pageTitle = ri.pageTitle;
-            bi.pageLink = ri.pageLink;
-            bi.nextItem = ri.nextItem;
-            bi.previousItem = ri.previousItem;
-
-            // The renderinstructions might have entries or categorized entries
-            // We check for null before we render
-
-            if (ri.members != null) {
-                bi.topArticles = new BlogEntryCollection(!ri.reverse);
-                // Little confusion on sorting order
-                final Iterator<BlogEntry> it = ri.members.iterator();
-                // We need to copy from the render instruction to get the
-                // sequence reversed
-                while (it.hasNext()) {
-                    final BlogEntry cur = it.next();
+            goodToGo = true;
+        } else if (ri.categories != null) {
+            bi.categorizedEntries = new ArrayList<BlogIndex>();
+            final Iterator<String> it = (ri.reverse) ? ri.categories.keySet().iterator()
+                    : ri.categories.descendingKeySet().iterator();
+            // We need to copy from the render instruction to get the
+            // sequence reversed
+            while (it.hasNext()) {
+                final RenderInstructions curRi = ri.categories.get(it.next());
+                final BlogIndex subBi = new BlogIndex();
+                subBi.allCategories = this.allCategories.values();
+                subBi.allDateCategories = this.allDateCategories.values();
+                subBi.pageTitle = curRi.pageTitle;
+                subBi.pageLink = curRi.pageLink;
+                subBi.topArticles = new BlogEntryCollection(true);
+                bi.categorizedEntries.add(subBi);
+                final Iterator<BlogEntry> subIt = curRi.members.descendingSet().iterator();
+                while (subIt.hasNext()) {
+                    final BlogEntry cur = subIt.next();
                     if (cur.getStatus().equals("Published")) {
-                        bi.topArticles.add(cur);
+                        subBi.topArticles.add(cur);
                     }
                 }
-                goodToGo = true;
-            } else if (ri.categories != null) {
-                bi.categorizedEntries = new ArrayList<BlogIndex>();
-                final Iterator<String> it = (ri.reverse) ? ri.categories.keySet().iterator()
-                        : ri.categories.descendingKeySet().iterator();
-                // We need to copy from the render instruction to get the
-                // sequence reversed
-                while (it.hasNext()) {
-                    final RenderInstructions curRi = ri.categories.get(it.next());
-                    final BlogIndex subBi = new BlogIndex();
-                    subBi.allCategories = this.allCategories.values();
-                    subBi.allDateCategories = this.allDateCategories.values();
-                    subBi.pageTitle = curRi.pageTitle;
-                    subBi.pageLink = curRi.pageLink;
-                    subBi.topArticles = new BlogEntryCollection(true);
-                    bi.categorizedEntries.add(subBi);
-                    final Iterator<BlogEntry> subIt = curRi.members.descendingSet().iterator();
-                    while (subIt.hasNext()) {
-                        final BlogEntry cur = subIt.next();
-                        if (cur.getStatus().equals("Published")) {
-                            subBi.topArticles.add(cur);
-                        }
-                    }
-
-                }
-                goodToGo = true;
             }
+            goodToGo = true;
+        }
 
-            if (goodToGo) {
-                final ByteArrayOutputStream out = new ByteArrayOutputStream(102400);
-                final Writer pw = new PrintWriter(out);
-
-                final MustacheFactory mf = new DefaultMustacheFactory(new File(this.config.templateDirectory));
-                final Mustache mustache = mf.compile(template);
-
-                mustache.execute(pw, bi);
-                pw.flush();
-                pw.close();
-
-                this.saveIfChanged(out.toByteArray(), finalDestination);
-            }
-
-        } catch (final IOException e) {
-            e.printStackTrace();
+        if (goodToGo) {
+            this.renderToDisk(template, finalDestination, bi);           
         }
 
         // Reset of categories
@@ -887,7 +810,6 @@ public class BlogRenderer {
             this.allDateCategories.get(ri.key).active = false;
         }
 
-        // System.out.println("Overview: " + ri.outFileName);
     }
 
     /**
@@ -922,21 +844,37 @@ public class BlogRenderer {
         final String template = this.config.SERIES_TEMPLATE;
         final String finalDestination = this.config.destinationDirectory + this.config.seriesFileName;
 
-        final FileOutputStream out = new FileOutputStream(new File(finalDestination));
-        final Writer pw = new PrintWriter(out);
-
-        final MustacheFactory mf = new DefaultMustacheFactory(new File(this.config.templateDirectory));
-        final Mustache mustache = mf.compile(template);
-
         bi.allCategories = this.allCategories.values();
         bi.allDateCategories = this.allDateCategories.values();
-
-        mustache.execute(pw, bi);
-        pw.flush();
-
-        pw.close();
-        out.close();
+        
+        this.renderToDisk(template, finalDestination, bi);
         System.out.println("Rendered series");
+    }
+    
+    /**
+     * Renders one object to disk based on a template and a destination
+     * only saves it to disk if it actually had changed
+     * @param template Name of the template to use
+     * @param finalDestination file location
+     * @param payload object to render
+     */
+    private void renderToDisk(final String template, final String finalDestination, final Object payload) {
+        final MustacheFactory mf = new DefaultMustacheFactory(new File(this.config.templateDirectory));
+        final Mustache mustache = mf.compile(template);
+        this.renderToDisk(mustache, finalDestination, payload);
+    }
+    
+    private void renderToDisk(final Mustache mustache, final String finalDestination, final Object payload) {
+        final BlogOutput out = new BlogOutput(finalDestination);
+        final Writer pw = new PrintWriter(out);
+        mustache.execute(pw, payload);
+        try {
+            pw.flush();
+            pw.close();
+            out.close();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 
     /**
@@ -983,65 +921,6 @@ public class BlogRenderer {
         be.saveDatatoJson(out);
         out.flush();
         out.close();
-    }
-
-    private boolean saveIfChanged(final byte[] newData, final String targetName) {
-
-        boolean saveThis = false;
-
-        final File targetFile = new File(targetName);
-        if (targetFile.isDirectory()) {
-            System.out.println("Directory encountered!" + targetName);
-        } else if (targetFile.exists()) {
-            try {
-                final InputStream existing = new FileInputStream(targetFile);
-                final ByteArrayOutputStream compare = new ByteArrayOutputStream(102400); // 100k
-                // for
-                // images
-                ByteStreams.copy(existing, compare);
-                // Save if they are not equal..
-                saveThis = !Arrays.equals(newData, compare.toByteArray());
-                Closeables.close(existing, true);
-            } catch (final FileNotFoundException e) {
-                // Anything goes wrong -> we save the file
-                e.printStackTrace();
-                saveThis = true;
-            } catch (final IOException e) {
-                // Anything goes wrong -> we save the file
-                e.printStackTrace();
-                saveThis = true;
-            }
-
-            // Now if it is there, get rid of it.
-            if (saveThis) {
-                targetFile.delete();
-            }
-
-        } else {
-            saveThis = true;
-        }
-
-        if (saveThis) {
-            OutputStream finalOut = null;
-
-            try {
-                // Ensure the directory structure exists
-                Files.createParentDirs(targetFile);
-                finalOut = new FileOutputStream(targetFile);
-                finalOut.write(newData);
-                finalOut.flush();
-                Closeables.close(finalOut, true);
-            } catch (final FileNotFoundException e) {
-                e.printStackTrace();
-            } catch (final IOException e) {
-                e.printStackTrace();
-            }
-            System.out.println("\n+" + targetFile);
-        } else {
-            System.out.print(".");
-        }
-
-        return saveThis;
     }
 
     private void updateMapper(final Map<String, String> mapper, final EntriesWithFiles outerList) {
