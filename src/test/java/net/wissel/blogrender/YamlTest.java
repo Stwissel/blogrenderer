@@ -52,7 +52,7 @@ public class YamlTest {
     }
 
     private void test2() throws Exception {
-        String fileName = "/Users/swissel/Blog/blogsource/src/documents/2018/02/query-a-json-object-like-xpath.blog";
+        String fileName = "/Users/swissel/Blog/blogsource/src/documents/2018/03/some-wild-test.blog";
         File blogFile = new File(fileName);
         FileInputStream in = new FileInputStream(blogFile);
         BlogEntry be = BlogEntry.loadDataFromBlog(in, fileName, Config.get(Config.CONFIG_NAME));

@@ -30,6 +30,7 @@ import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.io.PrintWriter;
 import java.io.Serializable;
+import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -167,7 +168,24 @@ public class BlogEntry implements Serializable, Comparable<BlogEntry> {
                         break;
 
                     case "publishdate":
+                        // Might have quotes or quotes
+                        if (value instanceof Date) {
                         result.setPublishDate((Date) value);
+                        } else {
+                            SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'");
+                            try {
+                                result.setPublishDate(sdf.parse(String.valueOf(value)));
+                            } catch (ParseException e) {
+                                SimpleDateFormat sdf2 = new SimpleDateFormat("yyyy-MM-dd");
+                                try {
+                                    result.setPublishDate(sdf2.parse(String.valueOf(value).substring(0,10)));
+                                } catch (ParseException e2) {
+                                    System.err.println("Can't parse the date:"+String.valueOf(value));
+                                    result.setPublishDate(new Date());
+                                }
+                               
+                            }
+                        }
                         break;
 
                     case "location":
