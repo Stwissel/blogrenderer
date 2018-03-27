@@ -16,6 +16,7 @@ import java.io.Writer;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
@@ -76,6 +77,8 @@ public class BlogRenderer {
     private final TreeMap<String, TreeMap<String, LinkItem>> allSeries = new TreeMap<String, TreeMap<String, LinkItem>>();
 
     private final TreeSet<BlogEntry> theBlog = new TreeSet<BlogEntry>();
+    
+    private final Map<String, BlogEntry> blogById = new HashMap<>();
 
     private Config config = null;
 
@@ -147,10 +150,39 @@ public class BlogRenderer {
         final String path = srcDir.getPath();
         this.loadBlogEntriesFromDisk(path + this.getConfig().documentDirectory, useYamlFormat);
         System.out.println("\n\nBlog loaded from disk");
+        this.loadCommentsFromDisk(path + this.getConfig().commentDirectory);
+        System.out.println("\nComments loaded from disk");
         this.loadFileDefinitionsFromDisk(path);
         System.out.println("\n\nFile definitions loaded from disk");
         this.cleanupLinksAndImages();
         System.out.println("\n\nCleanup complete");
+
+    }
+
+    private void loadCommentsFromDisk(String sourceFileOrDirName) {
+        // TODO Auto-generated method stub
+        final File srcDir = new File(sourceFileOrDirName);
+        if (!srcDir.exists()) {
+            System.err.print(sourceFileOrDirName + " doesn't exist");
+            return;
+        }
+
+        if (srcDir.isDirectory()) {
+            // Recursive call to get files in directory structure
+            for (final String curFile : srcDir.list()) {
+                this.loadCommentsFromDisk(srcDir.getPath() + "/" + curFile);
+            }
+
+        } else if (srcDir.getName().endsWith(".comment")) {
+            BlogComments bc =BlogComments.loadFromJson(srcDir);
+            if (bc != null) {
+                String parent = bc.getParentId();
+                if (this.blogById.containsKey(parent)) {
+                    this.blogById.get(parent).addComment(bc);
+                }
+            }
+            
+        }
 
     }
 
@@ -174,6 +206,8 @@ public class BlogRenderer {
                     Utils.date2ComparableString(be.getPublishDate()));
             // Store it in the big blog list for retrieval
             this.theBlog.add(be);
+            // and lookup
+            this.blogById.put(be.getUNID(), be);
 
             // Add the links to the mapping
             // this.config.plinkPrefix will be handled by the HTTP rule...

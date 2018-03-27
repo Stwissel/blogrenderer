@@ -26,29 +26,35 @@ public class BlogComments implements Comparable<BlogComments> {
 	private final static String COMPARE_DATE_FORMAT = "yyyy-MM-dd-HH-mm-ss-SSS";
 
 	public static BlogComments loadFromJson(final String fileName) {
-		BlogComments result = null;
 		final File commentFile = new File(fileName);
-		if (commentFile.exists() && commentFile.isFile()) {
-			try {
-				final InputStream in = new FileInputStream(commentFile);
-				final Gson gson = new GsonBuilder().create();
-				result = gson.fromJson(new InputStreamReader(in), BlogComments.class);
-				in.close();
-				if (result.isMarkdown()) {
-					String markdownText = result.getComment();
-					String htmlText = MarkdownConverter.markdown2HtmlWithCode(markdownText);
-					result.setComment(htmlText);
-				}
-			} catch (final FileNotFoundException e) {
-				e.printStackTrace();
-			} catch (final IOException e) {
-				e.printStackTrace();
-			}
-		} else {
-			System.err.println("Comment doesn't exist:" + fileName);
-		}
-		return result;
+		return BlogComments.loadFromJson(commentFile);
 	}
+	
+	public static BlogComments loadFromJson(final File commentFile) {
+	    BlogComments result = null;
+	       if (commentFile.exists() && commentFile.isFile()) {
+	            try {
+	                final InputStream in = new FileInputStream(commentFile);
+	                final Gson gson = new GsonBuilder().create();
+	                result = gson.fromJson(new InputStreamReader(in), BlogComments.class);
+	                in.close();
+	                if (result.isMarkdown()) {
+	                    String markdownText = result.getComment();
+	                    String htmlText = MarkdownConverter.markdown2HtmlWithCode(markdownText);
+	                    result.setComment(htmlText);
+	                }
+	            } catch (final FileNotFoundException e) {
+	                e.printStackTrace();
+	            } catch (final IOException e) {
+	                e.printStackTrace();
+	            }
+	        } else {
+	            System.err.println("Comment doesn't exist:" + commentFile.getAbsolutePath());
+	        }
+	    
+	    return result;
+	}
+	
 
 	private Date created;
 	private String parentId;

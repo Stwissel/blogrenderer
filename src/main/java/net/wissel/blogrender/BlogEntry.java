@@ -273,6 +273,13 @@ public class BlogEntry implements Serializable, Comparable<BlogEntry> {
         this.getCategory().add(cat2add);
     }
 
+    public BlogEntry addComment(final BlogComments bc) {
+        if (bc != null) {
+            this.comments.put(bc.getUNID(), bc);
+        }
+        return this;
+    }
+
     public Map<String, Object> asMap() {
         final Map<String, Object> result = new HashMap<>();
         this.nonNullMapEntry(result, "Author", this.getAuthor());
@@ -312,14 +319,14 @@ public class BlogEntry implements Serializable, Comparable<BlogEntry> {
      */
     public Collection<LinkItem> getAllCategories() {
         return this.allCategories;
-    }
+    };
 
     /**
      * @return the allDateCategories
      */
     public Collection<LinkItem> getAllDateCategories() {
         return this.allDateCategories;
-    };
+    }
 
     public String getAuthor() {
         return this.author;
