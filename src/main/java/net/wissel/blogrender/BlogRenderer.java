@@ -214,7 +214,7 @@ public class BlogRenderer {
             // String key = this.config.plinkPrefix +
             // be.getOldURL().toLowerCase();
             final String key = String.valueOf(be.getOldURL()).toLowerCase();
-            final String value = be.getURL();
+            final String value = be.getUrl();
             if (!"null".equals(key)) {
                 this.mapperOldNewURLs.put(key, value);
             }
@@ -256,14 +256,14 @@ public class BlogRenderer {
                 final TreeMap<String, LinkItem> c = this.allSeries.containsKey(series) ? this.allSeries.get(series)
                         : new TreeMap<String, LinkItem>();
                 // We sort categories reverse
-                catItem = new LinkItem(be.getTitle(), this.config.webBlogLocation + be.getURL(),
+                catItem = new LinkItem(be.getTitle(), this.config.webBlogLocation + be.getUrl(),
                         Utils.date2ComparableString(be.getPublishDate()), true);
-                c.put(be.getURL(), catItem);
+                c.put(be.getUrl(), catItem);
 
                 this.allSeries.put(series, c);
             }
 
-            System.out.println(be.getURL());
+            System.out.println(be.getUrl());
         }
     }
 
@@ -363,9 +363,9 @@ public class BlogRenderer {
     }
 
     private void cleanupOneBlogEntry(final BlogEntry be) {
-        be.setMainBody(this.cleanupHTMLlinksAndImages(be.getMainBody(), be.getURL()));
+        be.setMainBody(this.cleanupHTMLlinksAndImages(be.getMainBody(), be.getUrl()));
         if ((be.getMoreBody() != null) && !be.getMoreBody().equals("")) {
-            be.setMoreBody(this.cleanupHTMLlinksAndImages(be.getMoreBody(), be.getURL()));
+            be.setMoreBody(this.cleanupHTMLlinksAndImages(be.getMoreBody(), be.getUrl()));
         }
     }
 
@@ -749,7 +749,7 @@ public class BlogRenderer {
 
     private void renderOneEntry(final BlogEntry be, final Mustache mustache) throws IOException {
 
-        final String location = this.config.destinationDirectory + be.getURL();
+        final String location = this.config.destinationDirectory + be.getUrl();
         final String outDirs = location.substring(0, location.lastIndexOf("/"));
         final File dirs = new File(outDirs);
         if (!dirs.exists()) {
@@ -766,7 +766,7 @@ public class BlogRenderer {
         if (be.getSeries() != null) {
             final String series = be.getSeries();
             if (this.allSeries.containsKey(series)) {
-                this.allSeries.get(series).get(be.getURL()).active = true;
+                this.allSeries.get(series).get(be.getUrl()).active = true;
             }
         }
 
@@ -791,7 +791,7 @@ public class BlogRenderer {
         if (be.getSeries() != null) {
             final String series = be.getSeries();
             if (this.allSeries.containsKey(series)) {
-                this.allSeries.get(series).get(be.getURL()).active = false;
+                this.allSeries.get(series).get(be.getUrl()).active = false;
             }
         }
     }
@@ -968,9 +968,9 @@ public class BlogRenderer {
 
     private void saveBlogEntry(final BlogEntry be, final String wheretoSave) throws IOException {
 
-        System.out.println(be.getURL());
+        System.out.println(be.getUrl());
 
-        final String location = wheretoSave + be.getURL() + ".json";
+        final String location = wheretoSave + be.getUrl() + ".json";
         final File outFile = new File(location);
         if (outFile.exists()) {
             outFile.delete();

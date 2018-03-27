@@ -287,7 +287,7 @@ public class BlogEntry implements Serializable, Comparable<BlogEntry> {
         this.nonNullMapEntry(result, "Title", this.getTitle());
         this.nonNullMapEntry(result, "Series", this.getSeries());
         this.nonNullMapEntry(result, "UNID", this.getUNID());
-        this.nonNullMapEntry(result, "URL", this.getURL());
+        this.nonNullMapEntry(result, "URL", this.getUrl());
         this.nonNullMapEntry(result, "oldURL", this.getOldURL());
         this.nonNullMapEntry(result, "commentsclosed", this.getCommentsclosed());
         this.nonNullMapEntry(result, "SourceType", this.getSourceType());
@@ -397,11 +397,11 @@ public class BlogEntry implements Serializable, Comparable<BlogEntry> {
      * @return
      */
     public String getKey() {
-        return this.getShortDate() + " - " + this.getURL();
+        return this.getShortDate() + " - " + this.getUrl();
     }
 
     public LinkItem getLinkItem(final String baseURI) {
-        return new LinkItem(this.getTitle(), baseURI + this.getURL(),
+        return new LinkItem(this.getTitle(), baseURI + this.getUrl(),
                 Utils.date2ComparableString(this.getPublishDate()));
     }
 
@@ -495,7 +495,7 @@ public class BlogEntry implements Serializable, Comparable<BlogEntry> {
         return this.UNID;
     }
 
-    public String getURL() {
+    public String getUrl() {
         return this.URL;
     }
 
