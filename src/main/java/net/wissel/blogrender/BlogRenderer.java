@@ -144,6 +144,7 @@ public class BlogRenderer {
         final String path = srcDir.getPath();
         this.loadBlogEntriesFromDisk(path + this.getConfig().documentDirectory, useYamlFormat);
         System.out.println("\n\nBlog loaded from disk");
+        System.out.println("\n\nLoading comments...");
         this.loadCommentsFromDisk(path + this.getConfig().commentDirectory);
         System.out.println("\nComments loaded from disk");
         this.loadFileDefinitionsFromDisk(path);
@@ -154,25 +155,28 @@ public class BlogRenderer {
     }
 
     private void loadCommentsFromDisk(String sourceFileOrDirName) {
-        // TODO Auto-generated method stub
         final File srcDir = new File(sourceFileOrDirName);
         if (!srcDir.exists()) {
             System.err.print(sourceFileOrDirName + " doesn't exist");
             return;
         }
-
+        
+      
+        
         if (srcDir.isDirectory()) {
             // Recursive call to get files in directory structure
             for (final String curFile : srcDir.list()) {
                 this.loadCommentsFromDisk(srcDir.getPath() + "/" + curFile);
             }
 
-        } else if (srcDir.getName().endsWith(".comment")) {
+        } else if (srcDir.getName().endsWith(".comment") ||srcDir.getName().endsWith(".json") ) {
             BlogComments bc = BlogComments.loadFromJson(srcDir);
-            if (bc != null) {
+            if (bc != null && bc.isValid()) {
                 String parent = bc.getParentId();
                 if (this.blogById.containsKey(parent)) {
                     this.blogById.get(parent).addComment(bc);
+                } else {
+                    System.err.println("Can't find parent:"+parent);
                 }
             }
 
@@ -257,7 +261,7 @@ public class BlogRenderer {
                 this.allSeries.put(series, c);
             }
 
-            System.out.println(be.getEntryUrl());
+           // System.out.println(be.getEntryUrl());
         }
     }
 
@@ -416,6 +420,7 @@ public class BlogRenderer {
         }
 
         if (srcDir.isDirectory()) {
+            System.out.println(srcDir.getAbsolutePath());
             // Recursive call to get files in directory structure
             for (final String curFile : srcDir.list()) {
                 this.loadBlogEntriesFromDisk(srcDir.getPath() + "/" + curFile, useYamlFormat);

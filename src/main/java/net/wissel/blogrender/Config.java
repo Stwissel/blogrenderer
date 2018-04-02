@@ -99,8 +99,8 @@ public class Config {
 	public String categoriesLocation = "categories/";
 	// FileName for the directory files - should never need a change
 	public String indexFileName = "index.html";
-	public String indexRSSName = "stories.rss";
-	public String indexRSSName2 = "stories.xml";
+	public String indexRSSName = "stories.xml";
+	public String indexRSSName2 = "stories.rss";
 	public String seriesFileName = "series.html";
 	public String errorFileName = "404.html";
 	public String allIndexFileName = "all.html";

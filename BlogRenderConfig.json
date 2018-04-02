@@ -22,6 +22,7 @@
   "categoriesLocation": "categories/",
   "indexFileName": "index.html",
   "indexRSSName": "stories.xml",
+  "indexRSSName2": "stories.rss",
  "seriesFileName":"series.html",
   "allIndexFileName": "all.html",
  "imprintFileName"	:	 "imprint.html",
