@@ -8,6 +8,7 @@ import java.io.Reader;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Locale;
+import java.util.UUID;
 
 import org.apache.commons.codec.digest.DigestUtils;
 
@@ -23,7 +24,8 @@ public class BlogComments implements Comparable<BlogComments> {
 
     private final static String GRAVATAR_URL        = "//www.gravatar.com/avatar/";
     private final static String GRAVATAR_SIZE       = "88";                               // Pixels
-    private final static String DISPLAY_DATE_FORMAT = "EEEE dd MMMM yyyy GG - HH:mm zzzz";
+    // Full format would be: "EEEE dd MMMM yyyy GG - HH:mm zzzz"
+    private final static String DISPLAY_DATE_FORMAT = "EEEE dd MMMM yyyy GG";
     private final static String IMPORT_DATE_FORMAT = "MMMM dd, yyyy HH:mm:ss a";
     private final static String COMPARE_DATE_FORMAT = "yyyy-MM-dd-HH-mm-ss-SSS";
 
@@ -51,7 +53,7 @@ public class BlogComments implements Comparable<BlogComments> {
                             result.setComment(value.getAsString());
                         } else if ("parentid".equals(eName)) {
                             result.setParentId(value.getAsString());
-                        } else if ("unid".equals(eName)) {
+                        } else if ("unid".equals(eName) || "commentid".equals(eName)) {
                             result.setUNID(value.getAsString());
                         } else if ("markdown".equals(eName)) {
                             result.setMarkdown(value.getAsBoolean());
@@ -75,7 +77,12 @@ public class BlogComments implements Comparable<BlogComments> {
                         result.setComment(htmlText);
                     }
                 }
-                ;
+                
+                // UUID - just in case
+                if (result.getUNID() == null) {
+                    result.setUNID(UUID.randomUUID().toString());
+                }
+                
             } catch (final Exception e) {
                 e.printStackTrace();
                 result.setValid(false);

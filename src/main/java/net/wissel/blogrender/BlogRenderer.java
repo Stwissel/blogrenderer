@@ -160,11 +160,10 @@ public class BlogRenderer {
             System.err.print(sourceFileOrDirName + " doesn't exist");
             return;
         }
-        
-      
-        
+         
         if (srcDir.isDirectory()) {
             // Recursive call to get files in directory structure
+            System.out.println("Comments from "+srcDir.getAbsolutePath());
             for (final String curFile : srcDir.list()) {
                 this.loadCommentsFromDisk(srcDir.getPath() + "/" + curFile);
             }

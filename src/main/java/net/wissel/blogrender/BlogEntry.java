@@ -57,7 +57,9 @@ public class BlogEntry implements Serializable, Comparable<BlogEntry> {
 
     public static final String NEWLINE = System.getProperty("line.separator");
 
-    public static final String DATE_FORMAT = "yyyy-MM-dd hh:mm";
+    public static final String DATE_FORMAT = "dd MMMM yyyy";
+    public static final String DATE_FORMATSHORT = "MMMM yyyy";
+    public static final String DATE_FORMATSORT = "yyyy-MM-dd-HH-mm-ss";
 
     private static final long serialVersionUID = 1L;
 
@@ -463,16 +465,21 @@ public class BlogEntry implements Serializable, Comparable<BlogEntry> {
     }
 
     public Date getPublishDate() {
-        return this.publishDate;
+        return (this.publishDate == null) ? new Date() : this.publishDate;
     }
 
     public String getPublishDateString() {
         final SimpleDateFormat sdf = new SimpleDateFormat(BlogEntry.DATE_FORMAT);
-        return sdf.format(this.getPublishDate() == null ? new Date() : this.getPublishDate());
+        return sdf.format(this.getPublishDate());
     }
 
     public String getPublishDateStringShort() {
-        final SimpleDateFormat sdf = new SimpleDateFormat("MMMM yyyy");
+        final SimpleDateFormat sdf = new SimpleDateFormat(BlogEntry.DATE_FORMATSHORT);
+        return sdf.format(this.getPublishDate());
+    }
+    
+    public String getPublishDateStringSort() {
+        final SimpleDateFormat sdf = new SimpleDateFormat(BlogEntry.DATE_FORMATSORT);
         return sdf.format(this.getPublishDate());
     }
 
