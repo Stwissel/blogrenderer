@@ -43,7 +43,9 @@ public class Config {
 		}
 	}
 
-	public static String CONFIG_NAME = "BlogRenderConfig.json";
+    public static final String SITEMAP_NAME = "sitemap.xml";
+
+	public static final String CONFIG_NAME = "BlogRenderConfig.json";
 
 	public static Config get() {
 		return ConfigHolder.getInstance(null);

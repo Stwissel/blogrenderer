@@ -21,6 +21,9 @@
  */
 package net.wissel.blogrender;
 
+import java.util.HashMap;
+import java.util.Map;
+
 import com.vladsch.flexmark.ast.Node;
 import com.vladsch.flexmark.html.HtmlRenderer;
 import com.vladsch.flexmark.parser.Parser;
@@ -55,32 +58,27 @@ public class MarkdownConverter {
 	/**
 	 * Need to fix the way code is rendered. I'm using SyntaxHighlighter, not
 	 * just pre/code. Also Flexmark converts ' into &rsquo; need to reverse that
+	 * as well as " handling 
+	 * 
 	 * @param candidate
 	 * @return the fixed html
 	 */
 	private static String fixCodeHTML(String candidate) {
 		StringBuilder result = new StringBuilder(candidate);
-		// Need to check for <pre><code class="language-
-		final String searchFor = "<pre><code class=\"language-";
-		final String searchForClose = "</code></pre>";
-		final String replaceWith = "<pre class=\"brush: ";
-		final String replaceWithClose = "</pre>";
-		final String searchFor2 = "&rsquo;";
-		final String replaceWith2 = "'";
-		
-		// Code formatting
-		while (result.indexOf(searchFor) > -1) {
-			int startPos = result.indexOf(searchFor);
-			int secondPart = result.indexOf(searchForClose, startPos);
-			result.replace(secondPart, secondPart+searchForClose.length(), replaceWithClose);
-			result.replace(startPos, startPos+searchFor.length(), replaceWith);
-		}
-		
-		// Aphostroph handling
-		while (result.indexOf(searchFor2) > -1) {
-			int startPos = result.indexOf(searchFor2);
-			result.replace(startPos, startPos+searchFor2.length(), replaceWith2);
-		}
+		Map<String,String> tobeFixed = new HashMap<>();
+		tobeFixed.put("<pre><code class=\"language-","<pre class=\"brush: ");
+		tobeFixed.put("</code></pre>","</pre>");
+		tobeFixed.put("&rsquo;","'");
+		tobeFixed.put("&rdquo;","\"");
+		tobeFixed.put("&ldquo;","\"");
+
+		tobeFixed.forEach( (searchFor, replaceWith) -> {
+		    while(result.indexOf(searchFor) > -1) {
+		        int startPos = result.indexOf(searchFor);
+	            result.replace(startPos, startPos+searchFor.length(), replaceWith);
+		    }
+		});
+
 		return result.toString();
 	}
 }

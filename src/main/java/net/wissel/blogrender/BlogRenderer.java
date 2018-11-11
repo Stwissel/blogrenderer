@@ -160,22 +160,22 @@ public class BlogRenderer {
             System.err.print(sourceFileOrDirName + " doesn't exist");
             return;
         }
-         
+
         if (srcDir.isDirectory()) {
             // Recursive call to get files in directory structure
-            System.out.println("Comments from "+srcDir.getAbsolutePath());
+            System.out.println("Comments from " + srcDir.getAbsolutePath());
             for (final String curFile : srcDir.list()) {
                 this.loadCommentsFromDisk(srcDir.getPath() + "/" + curFile);
             }
 
-        } else if (srcDir.getName().endsWith(".comment") ||srcDir.getName().endsWith(".json") ) {
+        } else if (srcDir.getName().endsWith(".comment") || srcDir.getName().endsWith(".json")) {
             BlogComments bc = BlogComments.loadFromJson(srcDir);
             if (bc != null && bc.isValid()) {
                 String parent = bc.getParentId();
                 if (this.blogById.containsKey(parent)) {
                     this.blogById.get(parent).addComment(bc);
                 } else {
-                    System.err.println("Can't find parent:"+parent);
+                    System.err.println("Can't find parent:" + parent);
                 }
             }
 
@@ -260,7 +260,7 @@ public class BlogRenderer {
                 this.allSeries.put(series, c);
             }
 
-           // System.out.println(be.getEntryUrl());
+            // System.out.println(be.getEntryUrl());
         }
     }
 
@@ -490,7 +490,7 @@ public class BlogRenderer {
                 bi.topArticles.add(cur);
             }
         }
-        
+
         this.renderToDisk(template, finalDestination, bi);
         System.out.println("Rendered 404");
 
@@ -501,8 +501,8 @@ public class BlogRenderer {
         final String template = this.config.ATTACHMENT_TEMPLATE;
         final String finalDestination = this.config.destinationDirectory + this.config.downloadDirectory
                 + this.config.indexFileName;
-        this.renderToDisk(template, finalDestination,this.fileEntries);
-  
+        this.renderToDisk(template, finalDestination, this.fileEntries);
+
         System.out.println("Rendered Attachments");
 
     }
@@ -527,39 +527,39 @@ public class BlogRenderer {
 
         // Blog entries
         for (final BlogEntry be : this.theBlog) {
-            be.cleanupComments();
-            be.setAllCategories(this.allCategories.values());
-            be.setAllDateCategories(this.allDateCategories.descendingMap().values());
+            if ("Published".equalsIgnoreCase(be.getStatus())) {
+                be.cleanupComments();
+                be.setAllCategories(this.allCategories.values());
+                be.setAllDateCategories(this.allDateCategories.descendingMap().values());
 
-            if ((be.getSeries() != null) && be.getStatus().equals("Published")) {
-                final String series = be.getSeries();
-                if (this.allSeries.containsKey(series)) {
-                    final List<LinkItem> l = new ArrayList<LinkItem>();
-                    l.addAll(this.allSeries.get(series).values());
-                    be.setSeriesMember(l);
-                    if (!completedSeries.contains(series)) {
-                        // First entry of series - to be captures
-                        seriesIndex.topArticles.add(be);
-                        completedSeries.add(series);
+                if ((be.getSeries() != null)) {
+                    final String series = be.getSeries();
+                    if (this.allSeries.containsKey(series)) {
+                        final List<LinkItem> l = new ArrayList<LinkItem>();
+                        l.addAll(this.allSeries.get(series).values());
+                        be.setSeriesMember(l);
+                        if (!completedSeries.contains(series)) {
+                            // First entry of series - to be captures
+                            seriesIndex.topArticles.add(be);
+                            completedSeries.add(series);
+                        }
                     }
                 }
-            }
-            // We capture the previous link if we have one - only possible
-            // for the second entry onwards
-            // renderEntry contains the previous Blogentry which is the
-            // needs its nextLink populated by be and be needs its previousLink
-            // populated by renderentry
-            if (renderEntry != null) {
-                if (be.getStatus().equals("Published")) {
+                // We capture the previous link if we have one - only possible
+                // for the second entry onwards
+                // renderEntry contains the previous Blogentry which is the
+                // needs its nextLink populated by be and be needs its
+                // previousLink
+                // populated by renderentry
+                if (renderEntry != null) {
                     renderEntry.setNextItem(be.getLinkItem(baseDir));
+                    be.setPreviousItem(renderEntry.getLinkItem(baseDir));
+                    this.renderOneEntry(renderEntry, mustache);
                 }
-                be.setPreviousItem(renderEntry.getLinkItem(baseDir));
-                this.renderOneEntry(renderEntry, mustache);
+
+                renderEntry = be;
             }
-
-            renderEntry = be;
         }
-
         // The last entry wasn't rendered in the loop, so we do it here!
         this.renderOneEntry(renderEntry, mustache);
 
@@ -575,6 +575,7 @@ public class BlogRenderer {
         this.renderImprint();
         this.renderURLMapper();
         this.renderNGinxURLMapper();
+        this.renderSiteMap();
 
         System.out.println("...Done...");
     }
@@ -583,7 +584,7 @@ public class BlogRenderer {
 
         final String template = this.config.IMPRINT_TEMPLATE;
         final String finalDestination = this.config.destinationDirectory + this.config.imprintFileName;
- 
+
         final BlogIndex bi = new BlogIndex();
         bi.allCategories = this.allCategories.values();
         bi.allDateCategories = this.allDateCategories.values();
@@ -626,7 +627,7 @@ public class BlogRenderer {
             }
         }
         this.renderToDisk(template, finalDestination, bi);
-       
+
         System.out.println("Rendered Index");
     }
 
@@ -660,6 +661,43 @@ public class BlogRenderer {
 
         } catch (final Exception e) {
             System.out.println("\nstories.rss rendering failed: " + e.getMessage());
+        }
+
+    }
+    
+    /**
+     * Renders a sitemap.xml file for search engine disgestion
+     */
+    private void renderSiteMap() {
+        final String finalDestination = this.config.destinationDirectory + Config.SITEMAP_NAME;
+        final BlogOutput out = new BlogOutput(finalDestination);
+        final BlogIndex bi = new BlogIndex();
+        bi.allCategories = this.allCategories.values();
+        bi.allDateCategories = this.allDateCategories.values();
+        bi.topArticles = new BlogEntryCollection(true);
+        
+        //TODO: Define and write out sitemap entries 
+        final int max = 10;
+        int i = 0;
+        final Iterator<BlogEntry> it = this.theBlog.descendingIterator();
+
+        while (it.hasNext() && (i < max)) {
+            final BlogEntry cur = it.next();
+            if (cur.getStatus().equals("Published")) {
+                bi.topArticles.add(cur);
+                i++;
+            }
+        }
+
+        final RSSFeedWriter rss = new RSSFeedWriter(this.getConfig(), bi);
+        try {
+            rss.write(out);
+            out.flush();
+            out.close();
+            System.out.println("\n"+Config.SITEMAP_NAME+"Sitemap rendered");
+
+        } catch (final Exception e) {
+            System.out.println("\n"+Config.SITEMAP_NAME+" rendering failed: " + e.getMessage());
         }
 
     }
@@ -723,7 +761,7 @@ public class BlogRenderer {
 
         // Prepare to write out
         this.renderToDisk(mustache, location, be);
-       
+
         // Cleanup
         for (final String catName : be.getCategory()) {
             final LinkItem cat = new LinkItem(catName);
@@ -803,7 +841,7 @@ public class BlogRenderer {
         }
 
         if (goodToGo) {
-            this.renderToDisk(template, finalDestination, bi);           
+            this.renderToDisk(template, finalDestination, bi);
         }
 
         // Reset of categories
@@ -850,24 +888,28 @@ public class BlogRenderer {
 
         bi.allCategories = this.allCategories.values();
         bi.allDateCategories = this.allDateCategories.values();
-        
+
         this.renderToDisk(template, finalDestination, bi);
         System.out.println("Rendered series");
     }
-    
+
     /**
-     * Renders one object to disk based on a template and a destination
-     * only saves it to disk if it actually had changed
-     * @param template Name of the template to use
-     * @param finalDestination file location
-     * @param payload object to render
+     * Renders one object to disk based on a template and a destination only
+     * saves it to disk if it actually had changed
+     * 
+     * @param template
+     *            Name of the template to use
+     * @param finalDestination
+     *            file location
+     * @param payload
+     *            object to render
      */
     private void renderToDisk(final String template, final String finalDestination, final Object payload) {
         final MustacheFactory mf = new DefaultMustacheFactory(new File(this.config.templateDirectory));
         final Mustache mustache = mf.compile(template);
         this.renderToDisk(mustache, finalDestination, payload);
     }
-    
+
     private void renderToDisk(final Mustache mustache, final String finalDestination, final Object payload) {
         final BlogOutput out = new BlogOutput(finalDestination);
         final Writer pw = new PrintWriter(out);
