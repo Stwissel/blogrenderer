@@ -312,7 +312,9 @@ public class BlogRenderer {
         // In year we want to subcategorize with month
         if (type.equals("year")) {
             ri.addToCategory(be, be.getDateMonth(), be.getDateMonthNumber());
-        } else {
+        } else if (type.equals("category")) {
+            ri.addToCategory(be, be.getDateYear(), be.getDateYear());
+        }else {      
             ri.add(be);
         }
     }

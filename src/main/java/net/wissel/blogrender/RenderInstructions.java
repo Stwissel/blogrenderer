@@ -30,6 +30,12 @@ public class RenderInstructions {
         this.members.add(be);
     }
 
+    /**
+     * Adds a blog entry to a (sub)category
+     * @param be - the blog entry
+     * @param categoryName the Name of the category
+     * @param categoryValue the actual value of the category
+     */
     public void addToCategory(BlogEntry be, String categoryName, String categoryValue) {
         RenderInstructions ri;
         if (this.categories == null) {
