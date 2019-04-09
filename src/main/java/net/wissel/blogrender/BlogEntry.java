@@ -402,6 +402,10 @@ public class BlogEntry implements Serializable, Comparable<BlogEntry> {
         }
         return sdf.format(this.getPublishDate());
     }
+    
+    public String getDescription() {
+        return HTMLUtility.getTextBody(this.getMainBody(), 200);
+    }
 
     public Collection<LinkItem> getDisplayCategories() {
         final TreeSet<LinkItem> result = new TreeSet<>();

@@ -3,7 +3,7 @@
 	<modelVersion>4.0.0</modelVersion>
 	<groupId>net.wissel.blog</groupId>
 	<artifactId>blogrenderer</artifactId>
-	<version>1.0.2-SNAPSHOT</version>
+	<version>1.0.3</version>
 	<name>BlogRenderer</name>
 	<description>Renders a blog based on a directory of JSON and Mustache files</description>
 	<build>
