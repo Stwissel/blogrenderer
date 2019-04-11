@@ -37,5 +37,6 @@
   "language" : "en,de",
   "rssDescription" : "Thoughts, Insights and Opinions of Stephan H. Wissel. Topics included: Salesforce, The Clouds, IBM Notes and Domino, IBM Websphere, other IBM Lotus stuff,  J2EE, Software Archtecture, Personcentric Development, Agile Software, SDLC, Singapore and my Twins",
   "rssLink" : "https://wissel.net/blog/stories.rss",
-  "rssTitle" : "wissel.net Usability - Productivity - Business - The web - Singapore and Twins"
+  "rssTitle" : "wissel.net Usability - Productivity - Business - The web - Singapore and Twins",
+  "topicLength" : "300"
 }

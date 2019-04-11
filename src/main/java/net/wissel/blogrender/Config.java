@@ -124,6 +124,7 @@ public class Config {
 	public String rssLink = "https://wissel.net/blog/stories.rss";
 
 	public String rssTitle = "wissel.net Usability - Productivity - Business - The web - Singapore and Twins";
+	public String topicLength = "300";
 
 	private Config() {
 		// Hide the constructor, so there can only be

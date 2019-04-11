@@ -255,6 +255,14 @@ public class BlogEntry implements Serializable, Comparable<BlogEntry> {
     private String       oldURL;
     private Boolean      commentsclosed = false;
     private String       sourceType;
+    private int descriptionSize = 300;
+
+    /**
+     * @param descriptionSize the descriptionSize to set
+     */
+    public void setDescriptionSize(int descriptionSize) {
+        this.descriptionSize = descriptionSize;
+    }
 
     // The HTML representation
     private String mainBody = null;
@@ -404,7 +412,8 @@ public class BlogEntry implements Serializable, Comparable<BlogEntry> {
     }
     
     public String getDescription() {
-        return HTMLUtility.getTextBody(this.getMainBody(), 200);
+        return (this.title + " - " +
+         HTMLUtility.getTextBody(this.getMainBody(), this.descriptionSize)).replaceAll("\"", "'");
     }
 
     public Collection<LinkItem> getDisplayCategories() {

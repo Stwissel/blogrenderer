@@ -45,7 +45,7 @@ public class HTMLUtility {
      * @return
      */
     private static String smartSubString(String rawText, int numOfChars) {
-        if (numOfChars < 1) {
+        if (numOfChars < 1 || numOfChars >= rawText.length()) {
             return rawText;
         }
         String candidate = rawText.substring(0,numOfChars);

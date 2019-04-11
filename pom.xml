@@ -3,7 +3,7 @@
 	<modelVersion>4.0.0</modelVersion>
 	<groupId>net.wissel.blog</groupId>
 	<artifactId>blogrenderer</artifactId>
-	<version>1.0.3</version>
+	<version>1.0.6</version>
 	<name>BlogRenderer</name>
 	<description>Renders a blog based on a directory of JSON and Mustache files</description>
 	<build>
@@ -37,7 +37,8 @@
 							</transformers>
 							<artifactSet />
 							<!-- outputFile>${project.build.directory}/${project.artifactId}-${project.version}-fat.jar</outputFile -->
-							<outputFile>${project.build.directory}/blogrenderer-fat.jar</outputFile>
+							<outputFile>/Users/swissel/Blog/blogsource/bin/blogrenderer-fat.jar</outputFile>
+							<!-- ${project.build.directory} -->
 						</configuration>
 					</execution>
 				</executions>

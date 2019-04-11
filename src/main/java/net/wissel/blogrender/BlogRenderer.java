@@ -419,6 +419,8 @@ public class BlogRenderer {
             System.err.print(sourceFileOrDirName + " doesn't exist");
             return;
         }
+        
+        int descriptionSize = Integer.valueOf(this.config.topicLength);
 
         if (srcDir.isDirectory()) {
             System.out.println(srcDir.getAbsolutePath());
@@ -442,6 +444,7 @@ public class BlogRenderer {
                 e.printStackTrace();
             }
             if ((be != null) && (be.getTitle() != null) && be.getStatus().equalsIgnoreCase("Published")) {
+                be.setDescriptionSize(descriptionSize);
                 this.addBlogContext(be);
             }
 
