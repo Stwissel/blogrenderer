@@ -3,7 +3,7 @@
 	<modelVersion>4.0.0</modelVersion>
 	<groupId>net.wissel.blog</groupId>
 	<artifactId>blogrenderer</artifactId>
-	<version>1.0.6</version>
+	<version>1.0.7</version>
 	<name>BlogRenderer</name>
 	<description>Renders a blog based on a directory of JSON and Mustache files</description>
 	<build>
@@ -37,7 +37,7 @@
 							</transformers>
 							<artifactSet />
 							<!-- outputFile>${project.build.directory}/${project.artifactId}-${project.version}-fat.jar</outputFile -->
-							<outputFile>/Users/swissel/Blog/blogsource/bin/blogrenderer-fat.jar</outputFile>
+							<outputFile>/Users/stephan/Blog/blogsource/bin/blogrenderer-fat.jar</outputFile>
 							<!-- ${project.build.directory} -->
 						</configuration>
 					</execution>
@@ -49,27 +49,27 @@
 		<dependency>
 			<groupId>com.google.code.gson</groupId>
 			<artifactId>gson</artifactId>
-			<version>2.8.2</version>
+			<version>2.8.6</version>
 		</dependency>
 		<dependency>
 			<groupId>joda-time</groupId>
 			<artifactId>joda-time</artifactId>
-			<version>2.9.9</version>
+			<version>2.10.5</version>
 		</dependency>
 		<dependency>
 			<groupId>com.github.spullara.mustache.java</groupId>
 			<artifactId>compiler</artifactId>
-			<version>0.9.5</version>
+			<version>0.9.6</version>
 		</dependency>
 		<dependency>
 			<groupId>com.google.guava</groupId>
 			<artifactId>guava</artifactId>
-			<version>23.6-jre</version>
+			<version>28.2-jre</version>
 		</dependency>
 		<dependency>
 			<groupId>commons-codec</groupId>
 			<artifactId>commons-codec</artifactId>
-			<version>1.11</version>
+			<version>1.14</version>
 		</dependency>
 		<dependency>
 			<groupId>commons-digester</groupId>
@@ -79,23 +79,36 @@
 		<dependency>
 			<groupId>org.jsoup</groupId>
 			<artifactId>jsoup</artifactId>
-			<version>1.11.2</version>
+			<version>1.13.1</version>
 		</dependency>
 		<dependency>
 			<groupId>org.yaml</groupId>
 			<artifactId>snakeyaml</artifactId>
-			<version>1.20</version>
+			<version>1.26</version>
 		</dependency>
-		<dependency>
-			<groupId>com.vladsch.flexmark</groupId>
-			<artifactId>flexmark-all</artifactId>
-			<version>0.28.34</version>
-		</dependency>
+        <!-- https://mvnrepository.com/artifact/com.vladsch.flexmark/flexmark -->
+        <dependency>
+            <groupId>com.vladsch.flexmark</groupId>
+            <artifactId>flexmark</artifactId>
+            <version>0.61.2</version>
+        </dependency>
+        <!-- https://mvnrepository.com/artifact/com.vladsch.flexmark/flexmark-profile-pegdown -->
+        <dependency>
+            <groupId>com.vladsch.flexmark</groupId>
+            <artifactId>flexmark-profile-pegdown</artifactId>
+            <version>0.61.2</version>
+        </dependency>
+        <!-- https://mvnrepository.com/artifact/com.vladsch.flexmark/flexmark-ext-admonition -->
+        <dependency>
+            <groupId>com.vladsch.flexmark</groupId>
+            <artifactId>flexmark-ext-admonition</artifactId>
+            <version>0.61.2</version>
+        </dependency>
 		<!-- https://mvnrepository.com/artifact/com.fasterxml.jackson.core/jackson-annotations -->
 		<dependency>
 			<groupId>com.fasterxml.jackson.core</groupId>
 			<artifactId>jackson-annotations</artifactId>
-			<version>2.9.3</version>
+			<version>2.11.0.rc1</version>
 		</dependency>
 	</dependencies>
 </project>

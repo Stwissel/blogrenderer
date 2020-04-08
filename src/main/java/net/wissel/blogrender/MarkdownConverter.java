@@ -1,84 +1,129 @@
-/** ========================================================================= *
- * Copyright (C)  2017, 2018 Stephan Wissel                                   *
- *                            All rights reserved.                            *
- *                                                                            *
- *  @author     Stephan H. Wissel (stw) <stephan@wissel@net>                  *
- *                                       @notessensei                         *
- * @version     1.0                                                           *
- * ========================================================================== *
- *                                                                            *
- * Licensed under the  Apache License, Version 2.0  (the "License").  You may *
- * not use this file except in compliance with the License.  You may obtain a *
- * copy of the License at <http://www.apache.org/licenses/LICENSE-2.0>.       *
- *                                                                            *
- * Unless  required  by applicable  law or  agreed  to  in writing,  software *
- * distributed under the License is distributed on an  "AS IS" BASIS, WITHOUT *
- * WARRANTIES OR  CONDITIONS OF ANY KIND, either express or implied.  See the *
- * License for the  specific language  governing permissions  and limitations *
- * under the License.                                                         *
- *                                                                            *
- * ========================================================================== *
+/**
+ * ========================================================================= *
+ * Copyright (C) 2017, 2018 Stephan Wissel *
+ * All rights reserved. *
+ * *
+ *
+ * @author Stephan H. Wissel (stw) <stephan@wissel@net> *
+ * @notessensei *
+ * @version 1.0 *
+ *          ==========================================================================
+ *          *
+ *          *
+ *          Licensed under the Apache License, Version 2.0 (the "License"). You
+ *          may *
+ *          not use this file except in compliance with the License. You may
+ *          obtain a *
+ *          copy of the License at <http://www.apache.org/licenses/LICENSE-2.0>.
+ *          *
+ *          *
+ *          Unless required by applicable law or agreed to in writing, software
+ *          *
+ *          distributed under the License is distributed on an "AS IS" BASIS,
+ *          WITHOUT *
+ *          WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See
+ *          the *
+ *          License for the specific language governing permissions and
+ *          limitations *
+ *          under the License. *
+ *          *
+ *          ==========================================================================
+ *          *
  */
 package net.wissel.blogrender;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
 
-import com.vladsch.flexmark.ast.Node;
+import com.vladsch.flexmark.ext.admonition.AdmonitionExtension;
 import com.vladsch.flexmark.html.HtmlRenderer;
 import com.vladsch.flexmark.parser.Parser;
-import com.vladsch.flexmark.profiles.pegdown.Extensions;
-import com.vladsch.flexmark.profiles.pegdown.PegdownOptionsAdapter;
-import com.vladsch.flexmark.util.options.DataHolder;
+import com.vladsch.flexmark.parser.PegdownExtensions;
+import com.vladsch.flexmark.profile.pegdown.PegdownOptionsAdapter;
+import com.vladsch.flexmark.util.ast.Node;
+import com.vladsch.flexmark.util.data.DataHolder;
+import com.vladsch.flexmark.util.data.MutableDataHolder;
+import com.vladsch.flexmark.util.misc.Extension;
 
+/**
+ * @author Stephan H. Wissel
+ *
+ */
 public class MarkdownConverter {
-	static final DataHolder OPTIONS = PegdownOptionsAdapter.flexmarkOptions(
-            Extensions.ALL
-    );
 
-    static final Parser PARSER = Parser.builder(OPTIONS).build();
-    static final HtmlRenderer RENDERER = HtmlRenderer.builder(OPTIONS).build();
-    
-	public static String markdown2Html(String markdownText) {
-		Node document = PARSER.parse(markdownText);
-        String result = RENDERER.render(document);
-        return result;
-	}
+  static private MutableDataHolder optionHolder = null;
+  static private HtmlRenderer rendererHolder = null;
+  static private Parser parserHolder = null;
 
-	/**
-	 * 
-	 * @param mdContenCandidate markdown
-	 * @return HTML from Markdown that renders nicely for code highlighter
-	 */
-	public static String markdown2HtmlWithCode(String mdContentCandidate) {
-		String htmlContent = MarkdownConverter.markdown2Html(mdContentCandidate);
-		return MarkdownConverter.fixCodeHTML(htmlContent);
-	}
+  public static String markdown2Html(final String markdownText) {
+    final Node document = MarkdownConverter.getParser().parse(markdownText);
+    final String result = MarkdownConverter.getRenderer().render(document);
+    return result;
+  }
 
-	/**
-	 * Need to fix the way code is rendered. I'm using SyntaxHighlighter, not
-	 * just pre/code. Also Flexmark converts ' into &rsquo; need to reverse that
-	 * as well as " handling 
-	 * 
-	 * @param candidate
-	 * @return the fixed html
-	 */
-	private static String fixCodeHTML(String candidate) {
-		StringBuilder result = new StringBuilder(candidate);
-		Map<String,String> tobeFixed = new HashMap<>();
-		tobeFixed.put("<pre><code class=\"language-","<pre class=\"brush: ");
-		tobeFixed.put("</code></pre>","</pre>");
-		tobeFixed.put("&rsquo;","'");
-		tobeFixed.put("&rdquo;","\"");
-		tobeFixed.put("&ldquo;","\"");
+  /**
+   * @param mdContenCandidate markdown
+   * @return HTML from Markdown that renders nicely for code highlighter
+   */
+  public static String markdown2HtmlWithCode(final String mdContentCandidate) {
+    final String htmlContent = MarkdownConverter.markdown2Html(mdContentCandidate);
+    return MarkdownConverter.fixCodeHTML(htmlContent);
+  }
 
-		tobeFixed.forEach( (searchFor, replaceWith) -> {
-		    while(result.indexOf(searchFor) > -1) {
-		        int startPos = result.indexOf(searchFor);
-	            result.replace(startPos, startPos+searchFor.length(), replaceWith);
-		    }
-		});
+  /**
+   * Need to fix the way code is rendered. I'm using SyntaxHighlighter, not
+   * just pre/code. Also Flexmark converts ' into &rsquo; need to reverse that
+   * as well as " handling
+   *
+   * @param candidate
+   * @return the fixed html
+   */
+  private static String fixCodeHTML(final String candidate) {
+    final StringBuilder result = new StringBuilder(candidate);
+    final Map<String, String> tobeFixed = new HashMap<>();
+    tobeFixed.put("<pre><code class=\"language-", "<pre class=\"brush: ");
+    tobeFixed.put("</code></pre>", "</pre>");
+    tobeFixed.put("&rsquo;", "'");
+    tobeFixed.put("&rdquo;", "\"");
+    tobeFixed.put("&ldquo;", "\"");
 
-		return result.toString();
-	}
+    tobeFixed.forEach((searchFor, replaceWith) -> {
+      while (result.indexOf(searchFor) > -1) {
+        final int startPos = result.indexOf(searchFor);
+        result.replace(startPos, startPos + searchFor.length(), replaceWith);
+      }
+    });
+
+    return result.toString();
+  }
+
+  private static DataHolder getOptions() {
+
+    if (MarkdownConverter.optionHolder == null) {
+
+      final ArrayList<Extension> extensions = new ArrayList<>();
+      extensions.add(AdmonitionExtension.create());
+      final MutableDataHolder options = PegdownOptionsAdapter
+          .flexmarkOptions(PegdownExtensions.ALL)
+          .toMutable()
+          .set(com.vladsch.flexmark.parser.Parser.EXTENSIONS, extensions);
+      MarkdownConverter.optionHolder = options;
+    }
+    return MarkdownConverter.optionHolder;
+  }
+
+  private static Parser getParser() {
+    if (MarkdownConverter.parserHolder == null) {
+      MarkdownConverter.parserHolder = Parser.builder(MarkdownConverter.getOptions()).build();
+    }
+    return MarkdownConverter.parserHolder;
+  }
+
+  private static HtmlRenderer getRenderer() {
+    if (MarkdownConverter.rendererHolder == null) {
+      MarkdownConverter.rendererHolder = HtmlRenderer.builder(MarkdownConverter.getOptions()).build();
+    }
+    return MarkdownConverter.rendererHolder;
+  }
 }
