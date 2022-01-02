@@ -34,98 +34,97 @@ import com.google.common.io.Files;
 
 /**
  * @author swissel
- *
  */
 public class BlogOutput extends OutputStream {
 
-    private static final int            OUT_SIZE = 102400;
-    private final ByteArrayOutputStream out;
-    private final String                location;
+  private static final int OUT_SIZE = 102400;
+  private final ByteArrayOutputStream out;
+  private final String location;
 
-    public BlogOutput(final String location) {
-        this.location = location;
-        this.out = new ByteArrayOutputStream(BlogOutput.OUT_SIZE);
+  public BlogOutput(final String location) {
+    this.location = location;
+    this.out = new ByteArrayOutputStream(BlogOutput.OUT_SIZE);
+  }
+
+  @Override
+  public void close() throws IOException {
+    this.out.close();
+    this.save();
+  }
+
+  @Override
+  public void flush() throws IOException {
+    this.out.flush();
+  }
+
+  @Override
+  public void write(final byte[] b) throws IOException {
+    this.out.write(b);
+  }
+
+  @Override
+  public void write(final byte[] b, final int off, final int len) throws IOException {
+    this.out.write(b, off, len);
+  }
+
+  @Override
+  public void write(final int b) throws IOException {
+    this.out.write(b);
+
+  }
+
+  /**
+   * Saves the output stream if it has been modified
+   * 
+   * @return true if it has been saved - false if not
+   */
+  private boolean save() {
+    final File targetFile = new File(this.location);
+    if (targetFile.isDirectory()) {
+      System.err.println("Directory encountered!" + this.location);
+      return false;
     }
 
-    @Override
-    public void close() throws IOException {
-        this.out.close();
-        this.save();
+    boolean saveThis = true;
+
+    if (targetFile.exists()) {
+      byte[] existingByte;
+      try {
+        existingByte = Files.asByteSource(targetFile).read();
+        saveThis = !Arrays.equals(existingByte, this.out.toByteArray());
+      } catch (final IOException e) {
+        saveThis = true;
+      }
+
+      if (saveThis) {
+        targetFile.delete();
+      }
+
+    } else {
+      saveThis = true;
     }
 
-    @Override
-    public void flush() throws IOException {
-        this.out.flush();
+    if (saveThis) {
+      OutputStream finalOut = null;
+
+      try {
+        // Ensure the directory structure exists
+        Files.createParentDirs(targetFile);
+        finalOut = new FileOutputStream(targetFile);
+        finalOut.write(this.out.toByteArray());
+        finalOut.flush();
+        Closeables.close(finalOut, true);
+      } catch (final FileNotFoundException e) {
+        e.printStackTrace();
+      } catch (final IOException e) {
+        e.printStackTrace();
+      }
+      System.out.println("\n+" + targetFile);
+    } else {
+      System.out.print(".");
     }
 
-    @Override
-    public void write(final byte[] b) throws IOException {
-        this.out.write(b);
-    }
-
-    @Override
-    public void write(final byte[] b, final int off, final int len) throws IOException {
-        this.out.write(b, off, len);
-    }
-
-    @Override
-    public void write(final int b) throws IOException {
-        this.out.write(b);
-
-    }
-
-    /**
-     * Saves the output stream if it has been modified
-     * 
-     * @return true if it has been saved - false if not
-     */
-    private boolean save() {
-        final File targetFile = new File(this.location);
-        if (targetFile.isDirectory()) {
-            System.err.println("Directory encountered!" + this.location);
-            return false;
-        }
-
-        boolean saveThis = true;
-
-        if (targetFile.exists()) {
-            byte[] existingByte;
-            try {
-                existingByte = Files.asByteSource(targetFile).read();
-                saveThis = !Arrays.equals(existingByte, this.out.toByteArray());
-            } catch (final IOException e) {
-                saveThis = true;
-            }
-
-            if (saveThis) {
-                targetFile.delete();
-            }
-
-        } else {
-            saveThis = true;
-        }
-
-        if (saveThis) {
-            OutputStream finalOut = null;
-
-            try {
-                // Ensure the directory structure exists
-                Files.createParentDirs(targetFile);
-                finalOut = new FileOutputStream(targetFile);
-                finalOut.write(this.out.toByteArray());
-                finalOut.flush();
-                Closeables.close(finalOut, true);
-            } catch (final FileNotFoundException e) {
-                e.printStackTrace();
-            } catch (final IOException e) {
-                e.printStackTrace();
-            }
-            System.out.println("\n+" + targetFile);
-        } else {
-            System.out.print(".");
-        }
-
-        return saveThis;
-    }
+    return saveThis;
+  }
 
 }

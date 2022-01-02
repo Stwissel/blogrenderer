@@ -48,13 +48,12 @@ import com.vladsch.flexmark.util.misc.Extension;
 
 /**
  * @author Stephan H. Wissel
- *
  */
 public class MarkdownConverter {
 
-  static private MutableDataHolder optionHolder = null;
-  static private HtmlRenderer rendererHolder = null;
-  static private Parser parserHolder = null;
+  private static MutableDataHolder optionHolder = null;
+  private static HtmlRenderer rendererHolder = null;
+  private static Parser parserHolder = null;
 
   public static String markdown2Html(final String markdownText) {
     final Node document = MarkdownConverter.getParser().parse(markdownText);
@@ -82,6 +81,7 @@ public class MarkdownConverter {
   private static String fixCodeHTML(final String candidate) {
     final StringBuilder result = new StringBuilder(candidate);
     final Map<String, String> tobeFixed = new HashMap<>();
+    // FIXME: adjust for prismjs
     tobeFixed.put("<pre><code class=\"language-", "<pre class=\"brush: ");
     tobeFixed.put("</code></pre>", "</pre>");
     tobeFixed.put("&rsquo;", "'");
@@ -122,7 +122,8 @@ public class MarkdownConverter {
 
   private static HtmlRenderer getRenderer() {
     if (MarkdownConverter.rendererHolder == null) {
-      MarkdownConverter.rendererHolder = HtmlRenderer.builder(MarkdownConverter.getOptions()).build();
+      MarkdownConverter.rendererHolder =
+          HtmlRenderer.builder(MarkdownConverter.getOptions()).build();
     }
     return MarkdownConverter.rendererHolder;
   }

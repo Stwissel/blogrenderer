@@ -25,6 +25,5 @@
  * a build pipeline in Github or Bitbucket
  * 
  * @author swissel
- *
  */
 package net.wissel.blogrender;

@@ -26,41 +26,41 @@ import org.jsoup.nodes.Document;
 
 /**
  * @author swissel
- *
  */
 public class HTMLUtility {
-    
-    public static String getTextBody(final String htmlBody, final int numOfChars) {
-        
-        final Document hDoc = Jsoup.parse(htmlBody);
-        final String rawText = hDoc.body().text();
-        return HTMLUtility.smartSubString(rawText, numOfChars);
+
+  public static String getTextBody(final String htmlBody, final int numOfChars) {
+
+    final Document hDoc = Jsoup.parse(htmlBody);
+    final String rawText = hDoc.body().text();
+    return HTMLUtility.smartSubString(rawText, numOfChars);
+  }
+
+  /**
+   * Returns a substring of the input, but not cut in the middle of a word
+   * but at a white space or newline
+   * 
+   * @param rawText
+   * @param numOfChars
+   * @return
+   */
+  private static String smartSubString(String rawText, int numOfChars) {
+    if (numOfChars < 1 || numOfChars >= rawText.length()) {
+      return rawText;
+    }
+    String candidate = rawText.substring(0, numOfChars);
+    int lastSpace = candidate.lastIndexOf(" ");
+    int lastNewLine = candidate.lastIndexOf("\n");
+
+    if (lastSpace > 0 && lastNewLine > 0) {
+      if (lastSpace > lastNewLine) {
+        return candidate.substring(0, lastSpace) + " ...";
+      }
+      return candidate.substring(0, lastNewLine);
     }
 
-    /**
-     * Returns a substring of the input, but not cut in the middle of a word
-     * but at a white space or newline
-     * @param rawText
-     * @param numOfChars
-     * @return
-     */
-    private static String smartSubString(String rawText, int numOfChars) {
-        if (numOfChars < 1 || numOfChars >= rawText.length()) {
-            return rawText;
-        }
-        String candidate = rawText.substring(0,numOfChars);
-        int lastSpace = candidate.lastIndexOf(" ");
-        int lastNewLine = candidate.lastIndexOf("\n");
-        
-        if (lastSpace > 0 && lastNewLine > 0) {
-            if (lastSpace > lastNewLine) {
-                return candidate.substring(0, lastSpace)+" ...";
-            }
-            return candidate.substring(0, lastNewLine);
-        }
-        
-        return candidate;
-        
-    }
+    return candidate;
+
+  }
 
 }
