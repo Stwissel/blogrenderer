@@ -1,10 +1,10 @@
 /** ========================================================================= *
- * Copyright (C)  2017, 2018 Stephan Wissel                                   *
+ * Copyright (C)  2017, 2022 Stephan Wissel                                   *
  *                            All rights reserved.                            *
  *                                                                            *
  *  @author     Stephan H. Wissel (stw) <stephan@wissel@net>                  *
  *                                       @notessensei                         *
- * @version     1.0                                                           *
+ * @version     1.1                                                           *
  * ========================================================================== *
  *                                                                            *
  * Licensed under the  Apache License, Version 2.0  (the "License").  You may *
@@ -30,6 +30,7 @@ import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.io.PrintWriter;
 import java.io.Serializable;
+import java.nio.charset.StandardCharsets;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -42,19 +43,18 @@ import java.util.Map;
 import java.util.Scanner;
 import java.util.Set;
 import java.util.TreeSet;
-
+import java.util.function.BiConsumer;
+import com.google.common.io.Files;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 import org.yaml.snakeyaml.DumperOptions;
 import org.yaml.snakeyaml.DumperOptions.FlowStyle;
 import org.yaml.snakeyaml.Yaml;
 import org.yaml.snakeyaml.nodes.Tag;
 
-import com.google.common.base.Charsets;
-import com.google.common.io.Files;
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
-
 public class BlogEntry implements Serializable, Comparable<BlogEntry> {
 
+    private static final String MARKDOWN = "MARKDOWN";
     public static final String NEWLINE = System.getProperty("line.separator");
 
     public static final String DATE_FORMAT = "dd MMMM yyyy";
@@ -63,7 +63,50 @@ public class BlogEntry implements Serializable, Comparable<BlogEntry> {
 
     private static final long serialVersionUID = 1L;
 
-    public static BlogEntry loadDataFromBlog(final InputStream in, final String fileName, final Config config) {
+    private static boolean handleFirstLine(final String curLine, Config config,
+            StringBuilder yaml) {
+        if (!config.MARKDOW_SEPARATOR.equals(curLine)) {
+            // No yaml - no luck
+            return true; // Still in first line
+        }
+        yaml.append(config.MARKDOW_SEPARATOR);
+        yaml.append(System.lineSeparator());
+        return false; // got line 1
+    }
+
+    private static BlogEntry readBlogEntryFromYaml(final StringBuilder yaml, final String curLine,
+            final Config config) {
+        if (config.MARKDOW_SEPARATOR.equals(curLine)) {
+            // Now we create the blog entry
+            return BlogEntry.loadMetaFromYaml(yaml.toString());
+        }
+
+        yaml.append(curLine);
+        yaml.append(System.lineSeparator());
+        return null;
+
+    }
+
+    private static boolean addBlogEntryBody(final boolean inMoreBody, final StringBuilder rawBody,
+            final StringBuilder rawMore, final String curLine, final Config config) {
+        boolean separatorFound = config.MARKDOW_SEPARATOR.equals(curLine);
+
+        if (separatorFound) {
+            return true;
+        }
+
+        if (inMoreBody) {
+            rawMore.append(curLine);
+            rawMore.append(System.lineSeparator());
+        } else {
+            rawBody.append(curLine);
+            rawBody.append(System.lineSeparator());
+        }
+
+        return inMoreBody || separatorFound;
+    }
+
+    public static BlogEntry loadDataFromBlog(final InputStream in, final Config config) {
         BlogEntry result = null;
 
         final Scanner scanner = new Scanner(in);
@@ -71,49 +114,30 @@ public class BlogEntry implements Serializable, Comparable<BlogEntry> {
         final StringBuilder rawBody = new StringBuilder();
         final StringBuilder rawMore = new StringBuilder();
         boolean firstLine = true;
-        boolean yamlDone = false;
         boolean inMoreBody = false;
         while (scanner.hasNextLine()) {
             final String curLine = scanner.nextLine();
             if (firstLine) {
-                if (!config.MARKDOW_SEPARATOR.equals(curLine)) {
-                    // No yaml - no luck
-                    break;
-                }
-                yaml.append(config.MARKDOW_SEPARATOR);
-                yaml.append(System.lineSeparator());
-                firstLine = false;
+                firstLine = handleFirstLine(curLine, config, yaml);
             } else {
                 // Second line onwards
-                if (!yamlDone) {
-                    if (config.MARKDOW_SEPARATOR.equals(curLine)) {
-                        yamlDone = true;
-                        // Now we create the blog entry
-                        result = BlogEntry.loadMetaFromYaml(yaml.toString());
-                    } else {
-                        yaml.append(curLine);
-                    }
-                    yaml.append(System.lineSeparator());
+                if (result == null) {
+                    result = readBlogEntryFromYaml(yaml, curLine, config);
                 } else {
                     // Raw content - could be mainBody or moreBody
-                    if (config.MARKDOW_SEPARATOR.equals(curLine)) {
-                        inMoreBody = true;
-                    } else {
-                        if (inMoreBody) {
-                            rawMore.append(curLine);
-                            rawMore.append(System.lineSeparator());
-                        } else {
-                            rawBody.append(curLine);
-                            rawBody.append(System.lineSeparator());
-                        }
-                    }
+                    inMoreBody = addBlogEntryBody(inMoreBody, rawBody, rawMore, curLine, config);
                 }
             }
-
         }
         scanner.close();
 
         // eventually load additional Content from extra file
+        return populateResultBody(result, rawBody, rawMore);
+    }
+
+    private static BlogEntry populateResultBody(final BlogEntry result, final StringBuilder rawBody,
+            final StringBuilder rawMore) {
+
         if (result != null) {
             if ("HTML".equals(result.getSourceType())) {
                 result.setMainBody(rawBody.toString());
@@ -131,7 +155,8 @@ public class BlogEntry implements Serializable, Comparable<BlogEntry> {
         return result;
     }
 
-    public static BlogEntry loadDataFromJson(final InputStream in, final String fileName, final Config config) {
+    public static BlogEntry loadDataFromJson(final InputStream in, final String fileName,
+            final Config config) {
         BlogEntry result = null;
         final Gson gson = new GsonBuilder().create();
         result = gson.fromJson(new InputStreamReader(in), BlogEntry.class);
@@ -147,114 +172,103 @@ public class BlogEntry implements Serializable, Comparable<BlogEntry> {
         return result;
     }
 
-    // Meta Data
-    @SuppressWarnings("unchecked")
-    private static BlogEntry loadMetaFromYaml(final String yamlString) {
-        final BlogEntry result = new BlogEntry();
-        // FIXME: that doesn't work!
-        // final Constructor constructor = new Constructor(BlogEntry.class);
-        final Yaml yaml = new Yaml();
-        final Map<String, Object> meta = yaml.load(yamlString);
-        meta.forEach((keyCandidate, value) -> {
-            final String key = String.valueOf(keyCandidate).toLowerCase();
-            final String valueString = String.valueOf(value);
-            if ((value != null) && !("".equals(valueString)) && !("null".equals(valueString))) {
-                // TODO: accept alternate keys DocPad format (eventually)
-                switch (key) {
-                    case "author":
-                        result.setAuthor(valueString);
-                        break;
+    private static final Map<String, BiConsumer<BlogEntry, String>> yamlMapper = new HashMap<>();
 
-                    case "category":
-                        result.setCategory((List<String>) value);
-                        break;
-
-                    case "publishdate":
-                        // Might have quotes or quotes
-                        if (value instanceof Date) {
-                        result.setPublishDate((Date) value);
-                        } else {
-                            SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'");
-                            try {
-                                result.setPublishDate(sdf.parse(String.valueOf(value)));
-                            } catch (ParseException e) {
-                                SimpleDateFormat sdf2 = new SimpleDateFormat("yyyy-MM-dd");
-                                try {
-                                    result.setPublishDate(sdf2.parse(String.valueOf(value).substring(0,10)));
-                                } catch (ParseException e2) {
-                                    System.err.println("Can't parse the date:"+String.valueOf(value));
-                                    result.setPublishDate(new Date());
-                                }
-                               
-                            }
-                        }
-                        break;
-
-                    case "location":
-                        result.setLocation(valueString);
-                        break;
-
-                    case "status":
-                        result.setStatus(valueString);
-                        break;
-
-                    case "title":
-                        result.setTitle(valueString);
-                        break;
-
-                    case "series":
-                        result.setSeries(valueString);
-                        break;
-
-                    case "unid":
-                        result.setUNID(valueString);
-                        break;
-
-                    case "url":
-                        result.setEntryURL(valueString);
-                        break;
-
-                    case "oldurl":
-                        result.setOldURL(valueString);
-                        break;
-
-                    case "commentsclosed":
-                        result.setCommentsclosed(Boolean.valueOf(valueString));
-                        break;
-
-                    case "sourcetype":
-                        final String firstLetter = valueString.substring(0, 1).toLowerCase();
-                        if ("h".equals(firstLetter)) {
-                            result.setSourceType("HTML");
-                        } else if ("m".equalsIgnoreCase(firstLetter)) {
-                            result.setSourceType("MARKDOWN");
-                        } else {
-                            // For people who can't spell
-                            result.setSourceType(valueString);
-                        }
-                        break;
-
-                    default:
-                        System.err.println("Unknown key encountered (ignoring):" + String.valueOf(keyCandidate));
-                        break;
-                }
+    static {
+        yamlMapper.put("autor", (result, value) -> result.setAuthor(value));
+        yamlMapper.put("location", (result, valueString) -> result.setLocation(valueString));
+        yamlMapper.put("status", (result, valueString) -> result.setStatus(valueString));
+        yamlMapper.put("title", (result, valueString) -> result.setTitle(valueString));
+        yamlMapper.put("series", (result, valueString) -> result.setSeries(valueString));
+        yamlMapper.put("unid", (result, valueString) -> result.setUNID(valueString));
+        yamlMapper.put("url", (result, valueString) -> result.setEntryURL(valueString));
+        yamlMapper.put("oldurl", (result, valueString) -> result.setOldURL(valueString));
+        yamlMapper.put("commentsclosed",
+                (result, valueString) -> result.setCommentsclosed(Boolean.valueOf(valueString)));
+        yamlMapper.put("sourcetype", (result, valueString) -> {
+            final String firstLetter = valueString.substring(0, 1).toLowerCase();
+            if ("h".equals(firstLetter)) {
+                result.setSourceType("HTML");
+            } else if ("m".equalsIgnoreCase(firstLetter)) {
+                result.setSourceType(MARKDOWN);
+            } else {
+                // For people who can't spell
+                result.setSourceType(valueString);
             }
         });
+    }
+
+    // Meta Data
+    private static BlogEntry loadMetaFromYaml(final String yamlString) {
+        final BlogEntry result = new BlogEntry();
+        final Yaml yaml = new Yaml();
+        final Map<String, Object> meta = yaml.load(yamlString);
+        meta.forEach((keyCandidate, value) -> loadOneMetaFromYaml(result, keyCandidate, value));
         return result;
     }
 
-    private String       author;
-    private List<String> category       = new ArrayList<String>();
-    private Date         publishDate    = new Date();
-    private String       location;
-    private String       status;
-    private String       title;
-    private String       series         = null;
-    private String       UNID;
-    private String       entryUrl;
-    private String       oldURL;
-    private Boolean      commentsclosed = false;
-    private String       sourceType;
+    @SuppressWarnings("unchecked")
+    private static void loadOneMetaFromYaml(final BlogEntry result, String keyCandidate,
+            Object value) {
+
+        // No processing of empty values
+        if (keyCandidate == null || value == null || String.valueOf(value).equals("null")) {
+            return;
+        }
+
+        final String key = String.valueOf(keyCandidate).toLowerCase();
+        final String valueString = String.valueOf(value);
+
+        if ("category".equals(key) && value instanceof List) {
+            result.setCategory((List<String>) value);
+            return;
+        }
+
+        if ("publishdate".equals(key)) {
+            // Might have quotes or quotes
+            if (value instanceof Date) {
+                result.setPublishDate((Date) value);
+            } else {
+                SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'");
+                try {
+                    result.setPublishDate(sdf.parse(String.valueOf(value)));
+                } catch (ParseException e) {
+                    SimpleDateFormat sdf2 = new SimpleDateFormat("yyyy-MM-dd");
+                    try {
+                        result.setPublishDate(
+                                sdf2.parse(String.valueOf(value).substring(0, 10)));
+                    } catch (ParseException e2) {
+                        System.err.printf(
+                                "Can't parse the date: %s%n", value);
+                        result.setPublishDate(new Date());
+                    }
+
+                }
+            }
+            return;
+        }
+
+        final BiConsumer<BlogEntry, String> mapper =
+                yamlMapper.computeIfAbsent(key, k -> (blogEntry, unknownKey) ->
+                // We don't add anything to the blog, just log it out
+                System.err.printf("Unknown key encountered (ignoring): %s%n", unknownKey));
+
+        mapper.accept(result, valueString);
+
+    }
+
+    private String author;
+    private List<String> category = new ArrayList<>();
+    private Date publishDate = new Date();
+    private String location;
+    private String status;
+    private String title;
+    private String series = null;
+    private String UNID;
+    private String entryUrl;
+    private String oldURL;
+    private Boolean commentsclosed = false;
+    private String sourceType;
     private int descriptionSize = 300;
 
     /**
@@ -268,8 +282,8 @@ public class BlogEntry implements Serializable, Comparable<BlogEntry> {
     private String mainBody = null;
 
     // If there's more to read
-    private String                          moreBody = null;
-    private final Map<String, BlogComments> comments = new HashMap<String, BlogComments>();
+    private String moreBody = null;
+    private final Map<String, BlogComments> comments = new HashMap<>();
     // The following strings are redundant, but it
     // makes it easier to deal with the JSON then
     private String allBody;
@@ -278,21 +292,21 @@ public class BlogEntry implements Serializable, Comparable<BlogEntry> {
 
     // The following variables are only used by the
     // templating engine and are not fed into the JSON
-    private transient Collection<LinkItem> allCategories     = null;
+    private transient Collection<LinkItem> allCategories = null;
     private transient Collection<LinkItem> allDateCategories = null;
-    private transient Collection<LinkItem> seriesMember      = null;
-    private transient LinkItem             previousItem      = null;
+    private transient Collection<LinkItem> seriesMember = null;
+    private transient LinkItem previousItem = null;
 
     private transient LinkItem nextItem = null;
-    private final boolean      isBlog   = true;
-    public transient String    metaFileName;
+    private final boolean isBlog = true;
+    public transient String metaFileName;
 
-    public transient String sourceFileName     = null;
+    public transient String sourceFileName = null;
     public transient String sourceMoreFileName = null;
 
     /**
      * @param category
-     *            the category to set
+     *        the category to set
      */
     public void addCategory(final String cat2add) {
         this.getCategory().add(cat2add);
@@ -324,7 +338,7 @@ public class BlogEntry implements Serializable, Comparable<BlogEntry> {
 
     @Override
     public int compareTo(final BlogEntry be) {
-        // TODO: Do we need to add the name?
+
         final String thisString = Utils.date2ComparableString(this.getPublishDate());
         final String thatString = Utils.date2ComparableString(be.getPublishDate());
 
@@ -344,7 +358,7 @@ public class BlogEntry implements Serializable, Comparable<BlogEntry> {
      */
     public Collection<LinkItem> getAllCategories() {
         return this.allCategories;
-    };
+    }
 
     /**
      * @return the allDateCategories
@@ -362,7 +376,7 @@ public class BlogEntry implements Serializable, Comparable<BlogEntry> {
     }
 
     public String getCommentCount() {
-        if ((this.comments == null) || this.comments.isEmpty()) {
+        if (this.comments.isEmpty()) {
             return "0";
         }
         return Integer.toHexString(this.comments.size());
@@ -372,7 +386,7 @@ public class BlogEntry implements Serializable, Comparable<BlogEntry> {
      * @return the comments
      */
     public Set<BlogComments> getComments() {
-        final Set<BlogComments> result = new TreeSet<BlogComments>();
+        final Set<BlogComments> result = new TreeSet<>();
         result.addAll(this.comments.values());
         return result;
     }
@@ -410,17 +424,16 @@ public class BlogEntry implements Serializable, Comparable<BlogEntry> {
         }
         return sdf.format(this.getPublishDate());
     }
-    
+
     public String getDescription() {
         return (this.title + " - " +
-         HTMLUtility.getTextBody(this.getMainBody(), this.descriptionSize)).replaceAll("\"", "'");
+                HTMLUtility.getTextBody(this.getMainBody(), this.descriptionSize)).replace("\"",
+                        "'");
     }
 
     public Collection<LinkItem> getDisplayCategories() {
         final TreeSet<LinkItem> result = new TreeSet<>();
-        this.getCategory().forEach(cat -> {
-            result.add(new LinkItem(cat));
-        });
+        this.getCategory().forEach(cat -> result.add(new LinkItem(cat)));
         return result;
     }
 
@@ -490,7 +503,7 @@ public class BlogEntry implements Serializable, Comparable<BlogEntry> {
         final SimpleDateFormat sdf = new SimpleDateFormat(BlogEntry.DATE_FORMATSHORT);
         return sdf.format(this.getPublishDate());
     }
-    
+
     public String getPublishDateStringSort() {
         final SimpleDateFormat sdf = new SimpleDateFormat(BlogEntry.DATE_FORMATSORT);
         return sdf.format(this.getPublishDate());
@@ -578,7 +591,7 @@ public class BlogEntry implements Serializable, Comparable<BlogEntry> {
 
     /**
      * @param allCategories
-     *            the allCategories to set
+     *        the allCategories to set
      */
     public void setAllCategories(final Collection<LinkItem> allCategories) {
         this.allCategories = allCategories;
@@ -586,7 +599,7 @@ public class BlogEntry implements Serializable, Comparable<BlogEntry> {
 
     /**
      * @param allDateCategories
-     *            the allDateCategories to set
+     *        the allDateCategories to set
      */
     public void setAllDateCategories(final Collection<LinkItem> allDateCategories) {
         this.allDateCategories = allDateCategories;
@@ -602,13 +615,11 @@ public class BlogEntry implements Serializable, Comparable<BlogEntry> {
 
     /**
      * @param comments
-     *            the comments to set
+     *        the comments to set
      */
     public void setComments(final Set<BlogComments> comments) {
         this.comments.clear();
-        comments.forEach(comment -> {
-            this.comments.put(comment.getUNID(), comment);
-        });
+        comments.forEach(comment -> this.comments.put(comment.getUNID(), comment));
     }
 
     public void setCommentsclosed(final Boolean commentsclosed) {
@@ -621,7 +632,7 @@ public class BlogEntry implements Serializable, Comparable<BlogEntry> {
 
     /**
      * @param mainBody
-     *            the mainBody to set
+     *        the mainBody to set
      */
     public void setMainBody(final String mainBody) {
 
@@ -636,7 +647,7 @@ public class BlogEntry implements Serializable, Comparable<BlogEntry> {
 
     /**
      * @param moreBody
-     *            the moreBody to set
+     *        the moreBody to set
      */
     public void setMoreBody(final String moreBody) {
         this.moreBody = moreBody;
@@ -650,7 +661,7 @@ public class BlogEntry implements Serializable, Comparable<BlogEntry> {
 
     /**
      * @param nextItem
-     *            the nextItem to set
+     *        the nextItem to set
      */
     public void setNextItem(final LinkItem nextItem) {
         this.nextItem = nextItem;
@@ -662,7 +673,7 @@ public class BlogEntry implements Serializable, Comparable<BlogEntry> {
 
     /**
      * @param previousItem
-     *            the previousItem to set
+     *        the previousItem to set
      */
     public void setPreviousItem(final LinkItem previousItem) {
         this.previousItem = previousItem;
@@ -670,7 +681,7 @@ public class BlogEntry implements Serializable, Comparable<BlogEntry> {
 
     /**
      * @param publishDate
-     *            the publishDate to set
+     *        the publishDate to set
      */
     public void setPublishDate(final Date publishDate) {
         this.publishDate = publishDate;
@@ -690,10 +701,12 @@ public class BlogEntry implements Serializable, Comparable<BlogEntry> {
 
     /**
      * @param blogSourceType
-     *            the blogSourceType to set
+     *        the blogSourceType to set
      */
     public void setSourceType(final String blogSourceType) {
-        this.sourceType = ("M".equalsIgnoreCase(String.valueOf(blogSourceType).substring(0, 1))) ? "MARKDOWN" : "HTML";
+        this.sourceType =
+                ("M".equalsIgnoreCase(String.valueOf(blogSourceType).substring(0, 1))) ? MARKDOWN
+                        : "HTML";
     }
 
     public void setStatus(final String status) {
@@ -720,14 +733,21 @@ public class BlogEntry implements Serializable, Comparable<BlogEntry> {
     }
 
     private void addBlogBodyFromFiles(final String fileName) {
-        if (!fileName.endsWith(".json")) {
+        if (!fileName.endsWith(BlogRenderer.JSON_ENDING)) {
             return;
         }
         this.metaFileName = this.getMetafileName(fileName);
-        final String htmlContentFile = fileName.substring(0, fileName.lastIndexOf(".json"));
-        final String htmlMoreFile = htmlContentFile.substring(0, htmlContentFile.lastIndexOf(".html")) + ".more.html";
-        final String mdContentFile = htmlContentFile.substring(0, htmlContentFile.lastIndexOf(".html")) + ".md";
-        final String mdMoreFile = htmlContentFile.substring(0, htmlContentFile.lastIndexOf(".html")) + ".more.md";
+        final String htmlContentFile =
+                fileName.substring(0, fileName.lastIndexOf(BlogRenderer.JSON_ENDING));
+        final String htmlMoreFile =
+                htmlContentFile.substring(0, htmlContentFile.lastIndexOf(BlogRenderer.HTML_ENDING))
+                        + ".more.html";
+        final String mdContentFile =
+                htmlContentFile.substring(0, htmlContentFile.lastIndexOf(BlogRenderer.HTML_ENDING))
+                        + ".md";
+        final String mdMoreFile =
+                htmlContentFile.substring(0, htmlContentFile.lastIndexOf(BlogRenderer.HTML_ENDING))
+                        + ".more.md";
 
         final File mdFile = new File(mdContentFile);
         final File moreMdFile = new File(mdMoreFile);
@@ -740,10 +760,12 @@ public class BlogEntry implements Serializable, Comparable<BlogEntry> {
         // Markdown content check
         if (mdFile.exists()) {
             try {
-                this.setSourceType("MARKDOWN");
+                this.setSourceType(MARKDOWN);
                 this.sourceFileName = mdFile.getAbsolutePath();
-                final String mdContenCandidate = Files.asCharSource(mdFile, Charsets.UTF_8).read();
-                final String htmlContent = MarkdownConverter.markdown2HtmlWithCode(mdContenCandidate);
+                final String mdContenCandidate =
+                        Files.asCharSource(mdFile, StandardCharsets.UTF_8).read();
+                final String htmlContent =
+                        MarkdownConverter.markdown2HtmlWithCode(mdContenCandidate);
                 this.setMainBody(htmlContent);
             } catch (final IOException e) {
                 e.printStackTrace();
@@ -753,8 +775,10 @@ public class BlogEntry implements Serializable, Comparable<BlogEntry> {
         if (moreMdFile.exists()) {
             try {
                 this.sourceMoreFileName = moreMdFile.getAbsolutePath();
-                final String moreContentCandidate = Files.asCharSource(moreMdFile, Charsets.UTF_8).read();
-                final String moreContent = MarkdownConverter.markdown2HtmlWithCode(moreContentCandidate);
+                final String moreContentCandidate =
+                        Files.asCharSource(moreMdFile, StandardCharsets.UTF_8).read();
+                final String moreContent =
+                        MarkdownConverter.markdown2HtmlWithCode(moreContentCandidate);
                 this.setMoreBody(moreContent);
             } catch (final IOException e) {
                 e.printStackTrace();
@@ -766,7 +790,8 @@ public class BlogEntry implements Serializable, Comparable<BlogEntry> {
             try {
                 this.setSourceType("HTML");
                 this.sourceFileName = htmlFile.getAbsolutePath();
-                final String htmlContent = Files.asCharSource(htmlFile, Charsets.UTF_8).read();
+                final String htmlContent =
+                        Files.asCharSource(htmlFile, StandardCharsets.UTF_8).read();
                 this.setMainBody(htmlContent);
             } catch (final IOException e) {
                 e.printStackTrace();
@@ -776,7 +801,8 @@ public class BlogEntry implements Serializable, Comparable<BlogEntry> {
         if (moreFile.exists()) {
             try {
                 this.sourceMoreFileName = moreFile.getAbsolutePath();
-                final String moreContent = Files.asCharSource(moreFile, Charsets.UTF_8).read();
+                final String moreContent =
+                        Files.asCharSource(moreFile, StandardCharsets.UTF_8).read();
                 this.setMoreBody(moreContent);
             } catch (final IOException e) {
                 e.printStackTrace();
@@ -817,7 +843,7 @@ public class BlogEntry implements Serializable, Comparable<BlogEntry> {
                 }
             }
         }
-        ;
+
         return fileName;
     }
 
@@ -826,11 +852,14 @@ public class BlogEntry implements Serializable, Comparable<BlogEntry> {
      * separate directory (new). This function loads them from disk
      */
     private void loadCommentsFromDisk(final Config config) {
-        final File commentDir = new File(config.sourceDirectory + config.commentDirectory + "/" + this.getUNID());
+        final File commentDir =
+                new File(config.sourceDirectory + config.commentDirectory + File.separator
+                        + this.getUNID());
         if (commentDir.exists() && commentDir.isDirectory()) {
             // We have comments (eventually)
             for (final String curFile : commentDir.list()) {
-                final BlogComments curComm = BlogComments.loadFromJson(commentDir.getPath() + "/" + curFile);
+                final BlogComments curComm =
+                        BlogComments.loadFromJson(commentDir.getPath() + File.separator + curFile);
                 if (curComm != null) {
                     this.comments.put(curComm.getUNID(), curComm);
                 }
@@ -839,7 +868,8 @@ public class BlogEntry implements Serializable, Comparable<BlogEntry> {
 
     }
 
-    private void nonNullMapEntry(final Map<String, Object> target, final String key, final Object value) {
+    private void nonNullMapEntry(final Map<String, Object> target, final String key,
+            final Object value) {
         if ((key == null) || (value == null) || String.valueOf(value).equals("")) {
             return;
         }

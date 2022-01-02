@@ -26,18 +26,15 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.util.Iterator;
-
+import com.google.common.base.Charsets;
+import com.google.common.io.Files;
 import org.yaml.snakeyaml.DumperOptions;
 import org.yaml.snakeyaml.DumperOptions.FlowStyle;
 import org.yaml.snakeyaml.Yaml;
 import org.yaml.snakeyaml.nodes.Tag;
 
-import com.google.common.base.Charsets;
-import com.google.common.io.Files;
-
 /**
  * @author swissel
- *
  */
 public class YamlTest {
 
@@ -47,16 +44,17 @@ public class YamlTest {
      */
     public static void main(final String[] args) throws Exception {
         final YamlTest yt = new YamlTest();
-        //yt.test1();
+        yt.test1();
         yt.test2();
     }
 
     private void test2() throws Exception {
-        String fileName = "/Users/swissel/Blog/blogsource/src/documents/2018/03/some-wild-test.blog";
+        String fileName =
+                "/Users/swissel/Blog/blogsource/src/documents/2018/03/some-wild-test.blog";
         File blogFile = new File(fileName);
         FileInputStream in = new FileInputStream(blogFile);
-        BlogEntry be = BlogEntry.loadDataFromBlog(in, fileName, Config.get(Config.CONFIG_NAME));
-        
+        BlogEntry be = BlogEntry.loadDataFromBlog(in, Config.get(Config.CONFIG_NAME));
+
         in.close();
         final DumperOptions options = new DumperOptions();
         options.setPrettyFlow(true);
@@ -67,7 +65,7 @@ public class YamlTest {
         final Yaml yaml = new Yaml(options);
         pw.println(yaml.dumpAs(be.asMap(), Tag.MAP, FlowStyle.BLOCK));
         pw.println(Config.get(Config.CONFIG_NAME).MARKDOW_SEPARATOR);
-        
+
     }
 
     private void test1() throws IOException {
@@ -86,7 +84,7 @@ public class YamlTest {
         // for (int i = 0; i < 5; i++) {
         while (iter.hasNext()) {
             final BlogEntry be = iter.next();
-             pw.println(yaml.dumpAs(be.asMap(), Tag.MAP, FlowStyle.BLOCK));
+            pw.println(yaml.dumpAs(be.asMap(), Tag.MAP, FlowStyle.BLOCK));
             pw.println(config.MARKDOW_SEPARATOR);
             pw.println(Files.asCharSource(new File(be.sourceFileName), Charsets.UTF_8).read());
         }

@@ -1,3 +1,24 @@
+/** ========================================================================= *
+ * Copyright (C)  2017, 2022 Stephan Wissel                                   *
+ *                            All rights reserved.                            *
+ *                                                                            *
+ *  @author     Stephan H. Wissel (stw) <stephan@wissel@net>                  *
+ *                                       @notessensei                         *
+ * @version     1.1                                                           *
+ * ========================================================================== *
+ *                                                                            *
+ * Licensed under the  Apache License, Version 2.0  (the "License").  You may *
+ * not use this file except in compliance with the License.  You may obtain a *
+ * copy of the License at <http://www.apache.org/licenses/LICENSE-2.0>.       *
+ *                                                                            *
+ * Unless  required  by applicable  law or  agreed  to  in writing,  software *
+ * distributed under the License is distributed on an  "AS IS" BASIS, WITHOUT *
+ * WARRANTIES OR  CONDITIONS OF ANY KIND, either express or implied.  See the *
+ * License for the  specific language  governing permissions  and limitations *
+ * under the License.                                                         *
+ *                                                                            *
+ * ========================================================================== *
+ */
 package net.wissel.blogrender;
 
 import java.io.File;
@@ -8,26 +29,25 @@ import java.io.Reader;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Locale;
+import java.util.Map.Entry;
 import java.util.UUID;
-
-import org.apache.commons.codec.digest.DigestUtils;
-
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import org.apache.commons.codec.digest.DigestUtils;
 
 @JsonIgnoreProperties
 public class BlogComments implements Comparable<BlogComments> {
 
-    private final static String GRAVATAR_URL        = "//www.gravatar.com/avatar/";
-    private final static String GRAVATAR_SIZE       = "88";                               // Pixels
+    private static final String GRAVATAR_URL = "//www.gravatar.com/avatar/";
+    private static final String GRAVATAR_SIZE = "88"; // Pixels
     // Full format would be: "EEEE dd MMMM yyyy GG - HH:mm zzzz"
-    private final static String DISPLAY_DATE_FORMAT = "EEEE dd MMMM yyyy GG";
-    private final static String IMPORT_DATE_FORMAT = "MMMM dd, yyyy HH:mm:ss a";
-    private final static String COMPARE_DATE_FORMAT = "yyyy-MM-dd-HH-mm-ss-SSS";
+    private static final String DISPLAY_DATE_FORMAT = "EEEE dd MMMM yyyy GG";
+    private static final String IMPORT_DATE_FORMAT = "MMMM dd, yyyy HH:mm:ss a";
+    private static final String COMPARE_DATE_FORMAT = "yyyy-MM-dd-HH-mm-ss-SSS";
 
     public static BlogComments loadFromJson(final File commentFile) {
         final BlogComments result = new BlogComments();
@@ -35,54 +55,28 @@ public class BlogComments implements Comparable<BlogComments> {
             try {
                 result.setCreated(new Date(commentFile.lastModified()));
                 final Reader in = new FileReader(commentFile);
-                final JsonParser parser = new JsonParser();
-                final JsonElement je = parser.parse(in);
+                final JsonElement je = JsonParser.parseReader(in);
                 in.close();
                 final JsonObject rawComment = je.getAsJsonObject();
 
-                rawComment.entrySet().forEach(entry -> {
-
-                    final String eName = entry.getKey().toLowerCase();
-                    final JsonElement value = entry.getValue();
-                    try {
-                        if ("commentor".equals(eName) || "author".equals(eName)) {
-                            result.setAuthor(value.getAsString());
-                        } else if ("website".equals(eName) || "url".equals(eName)) {
-                            result.setWebSite(value.getAsString());
-                        } else if ("body".equals(eName) || "comment".equals(eName)) {
-                            result.setComment(value.getAsString());
-                        } else if ("parentid".equals(eName)) {
-                            result.setParentId(value.getAsString());
-                        } else if ("unid".equals(eName) || "commentid".equals(eName)) {
-                            result.setUNID(value.getAsString());
-                        } else if ("markdown".equals(eName)) {
-                            result.setMarkdown(value.getAsBoolean());
-                        } else if ("created".equals(eName)) {
-                            SimpleDateFormat sdf = new SimpleDateFormat(IMPORT_DATE_FORMAT, Locale.US);
-                            // "Oct 3, 2017 2:07:04 PM"
-                            Date someDate = sdf.parse(value.getAsString());
-                            result.setCreated(someDate);
-                        }
-                    } catch (Exception e) {
-                        System.err.println(eName + " didn't work:" + e.getMessage());
-                    }
-
-                });
+                rawComment.entrySet()
+                        .forEach(entry -> BlogComments.handleOneJsonElement(entry, result));
 
                 // Cleanup the mark
                 if (result.isMarkdown()) {
                     final String markdownText = result.getComment();
                     if (markdownText != null) {
-                        final String htmlText = MarkdownConverter.markdown2HtmlWithCode(markdownText);
+                        final String htmlText =
+                                MarkdownConverter.markdown2HtmlWithCode(markdownText);
                         result.setComment(htmlText);
                     }
                 }
-                
+
                 // UUID - just in case
                 if (result.getUNID() == null) {
                     result.setUNID(UUID.randomUUID().toString());
                 }
-                
+
             } catch (final Exception e) {
                 e.printStackTrace();
                 result.setValid(false);
@@ -94,25 +88,53 @@ public class BlogComments implements Comparable<BlogComments> {
         return result;
     }
 
+    private static void handleOneJsonElement(final Entry<String, JsonElement> entry,
+            final BlogComments result) {
+        final String eName = entry.getKey().toLowerCase();
+        final JsonElement value = entry.getValue();
+        try {
+            if ("commentor".equals(eName) || "author".equals(eName)) {
+                result.setAuthor(value.getAsString());
+            } else if ("website".equals(eName) || "url".equals(eName)) {
+                result.setWebSite(value.getAsString());
+            } else if ("body".equals(eName) || "comment".equals(eName)) {
+                result.setComment(value.getAsString());
+            } else if ("parentid".equals(eName)) {
+                result.setParentId(value.getAsString());
+            } else if ("unid".equals(eName) || "commentid".equals(eName)) {
+                result.setUNID(value.getAsString());
+            } else if ("markdown".equals(eName)) {
+                result.setMarkdown(value.getAsBoolean());
+            } else if ("created".equals(eName)) {
+                SimpleDateFormat sdf = new SimpleDateFormat(IMPORT_DATE_FORMAT, Locale.US);
+                // "Oct 3, 2017 2:07:04 PM"
+                Date someDate = sdf.parse(value.getAsString());
+                result.setCreated(someDate);
+            }
+        } catch (Exception e) {
+            System.err.println(eName + " didn't work:" + e.getMessage());
+        }
+    }
+
     public static BlogComments loadFromJson(final String fileName) {
         final File commentFile = new File(fileName);
         return BlogComments.loadFromJson(commentFile);
     }
 
     private boolean valid = true;
-    private Date    created;
-    private String  parentId;
-    private String  comment;
-    private String  referer;
-    private String  userAgent;
-    private String  author;
-    private String  remoteAddress;
-    private String  eMail;
-    private String  url;
+    private Date created;
+    private String parentId;
+    private String comment;
+    private String referer;
+    private String userAgent;
+    private String author;
+    private String remoteAddress;
+    private String eMail;
+    private String url;
     private boolean markdown;
-    private String  UNID;
-    private String  webSite;
-    private String  gravatarURL;
+    private String UNID;
+    private String webSite;
+    private String gravatarURL;
 
     @Override
     public int compareTo(final BlogComments externalComment) {
@@ -161,9 +183,11 @@ public class BlogComments implements Comparable<BlogComments> {
     }
 
     public String getGravatarURL() {
-        if (((this.gravatarURL == null) || this.gravatarURL.trim().equals("")) && (this.eMail != null)) {
+        if (((this.gravatarURL == null) || this.gravatarURL.trim().equals(""))
+                && (this.eMail != null)) {
             final String emailHash = DigestUtils.md5Hex(this.eMail.toLowerCase().trim());
-            this.setGravatarURL(BlogComments.GRAVATAR_URL + emailHash + ".jpg?s=" + BlogComments.GRAVATAR_SIZE);
+            this.setGravatarURL(
+                    BlogComments.GRAVATAR_URL + emailHash + ".jpg?s=" + BlogComments.GRAVATAR_SIZE);
         }
 
         return this.gravatarURL;
@@ -245,7 +269,7 @@ public class BlogComments implements Comparable<BlogComments> {
 
     /**
      * @param author
-     *            the author to set
+     *        the author to set
      */
     public void setAuthor(final String author) {
         this.author = author;
@@ -253,7 +277,7 @@ public class BlogComments implements Comparable<BlogComments> {
 
     /**
      * @param comment
-     *            the comment to set
+     *        the comment to set
      */
     public void setComment(final String comment) {
         this.comment = comment;
@@ -261,7 +285,7 @@ public class BlogComments implements Comparable<BlogComments> {
 
     /**
      * @param created
-     *            the created to set
+     *        the created to set
      */
     public void setCreated(final Date created) {
         this.created = created;
@@ -269,7 +293,7 @@ public class BlogComments implements Comparable<BlogComments> {
 
     /**
      * @param eMail
-     *            the eMail to set
+     *        the eMail to set
      */
     public void seteMail(final String eMail) {
         this.eMail = eMail;
@@ -286,7 +310,7 @@ public class BlogComments implements Comparable<BlogComments> {
 
     /**
      * @param markdown
-     *            the markdown to set
+     *        the markdown to set
      */
     public void setMarkdown(final boolean markdown) {
         this.markdown = markdown;
@@ -294,7 +318,7 @@ public class BlogComments implements Comparable<BlogComments> {
 
     /**
      * @param parentId
-     *            the parentId to set
+     *        the parentId to set
      */
     public void setParentId(final String parentId) {
         this.parentId = parentId;
@@ -302,7 +326,7 @@ public class BlogComments implements Comparable<BlogComments> {
 
     /**
      * @param referer
-     *            the referer to set
+     *        the referer to set
      */
     public void setReferer(final String referer) {
         this.referer = referer;
@@ -310,7 +334,7 @@ public class BlogComments implements Comparable<BlogComments> {
 
     /**
      * @param remoteAddress
-     *            the remoteAddress to set
+     *        the remoteAddress to set
      */
     public void setRemoteAddress(final String remoteAddress) {
         this.remoteAddress = remoteAddress;
@@ -318,7 +342,7 @@ public class BlogComments implements Comparable<BlogComments> {
 
     /**
      * @param uNID
-     *            the uNID to set
+     *        the uNID to set
      */
     public void setUNID(final String uNID) {
         this.UNID = uNID;
@@ -326,7 +350,7 @@ public class BlogComments implements Comparable<BlogComments> {
 
     /**
      * @param url
-     *            the url to set
+     *        the url to set
      */
     public void setUrl(final String url) {
         this.url = url;
@@ -334,7 +358,7 @@ public class BlogComments implements Comparable<BlogComments> {
 
     /**
      * @param userAgent
-     *            the userAgent to set
+     *        the userAgent to set
      */
     public void setUserAgent(final String userAgent) {
         this.userAgent = userAgent;
@@ -342,7 +366,7 @@ public class BlogComments implements Comparable<BlogComments> {
 
     /**
      * @param valid
-     *            the valid to set
+     *        the valid to set
      */
     public void setValid(final boolean valid) {
         this.valid = valid;
@@ -350,7 +374,7 @@ public class BlogComments implements Comparable<BlogComments> {
 
     /**
      * @param webSite
-     *            the webSite to set
+     *        the webSite to set
      */
     public void setWebSite(final String webSite) {
         this.webSite = webSite;

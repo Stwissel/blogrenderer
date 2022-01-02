@@ -1,11 +1,28 @@
-/**
- *
+/** ========================================================================= *
+ * Copyright (C)  2017, 2022 Stephan Wissel                                   *
+ *                            All rights reserved.                            *
+ *                                                                            *
+ *  @author     Stephan H. Wissel (stw) <stephan@wissel@net>                  *
+ *                                       @notessensei                         *
+ * @version     1.1                                                           *
+ * ========================================================================== *
+ *                                                                            *
+ * Licensed under the  Apache License, Version 2.0  (the "License").  You may *
+ * not use this file except in compliance with the License.  You may obtain a *
+ * copy of the License at <http://www.apache.org/licenses/LICENSE-2.0>.       *
+ *                                                                            *
+ * Unless  required  by applicable  law or  agreed  to  in writing,  software *
+ * distributed under the License is distributed on an  "AS IS" BASIS, WITHOUT *
+ * WARRANTIES OR  CONDITIONS OF ANY KIND, either express or implied.  See the *
+ * License for the  specific language  governing permissions  and limitations *
+ * under the License.                                                         *
+ *                                                                            *
+ * ========================================================================== *
  */
 package net.wissel.blogrender;
 
 import java.io.File;
 import java.io.FileInputStream;
-import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.PrintWriter;
@@ -18,19 +35,17 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.SortedSet;
 import java.util.TreeMap;
 import java.util.TreeSet;
-
-import org.joda.time.Duration;
-import org.jsoup.Jsoup;
-import org.jsoup.nodes.Element;
-import org.jsoup.select.Elements;
-
 import com.github.mustachejava.DefaultMustacheFactory;
 import com.github.mustachejava.Mustache;
 import com.github.mustachejava.MustacheFactory;
 import com.google.common.io.Files;
-
+import org.joda.time.Duration;
+import org.jsoup.Jsoup;
+import org.jsoup.nodes.Element;
+import org.jsoup.select.Elements;
 import net.wissel.blogrender.EntriesWithFiles.FileEntry;
 
 /**
@@ -38,7 +53,13 @@ import net.wissel.blogrender.EntriesWithFiles.FileEntry;
  */
 public class BlogRenderer {
 
-    private final static String ALL_CATEGORY_NAME = "allCategories";
+    public static final String JSON_ENDING = ".json";
+    public static final String BLOG_ENDING = ".blog";
+    public static final String HTML_ENDING = ".html";
+
+    private static final String CATEGORY = "category";
+    private static final String PUBLISHED = "Published";
+    private static final String ALL_CATEGORY_NAME = "allCategories";
 
     /**
      * @param args
@@ -60,17 +81,17 @@ public class BlogRenderer {
         final Date end = new Date();
         System.out.println("\n\n ************************** Done! **************************\n\n");
         final Duration d = new Duration(start.getTime(), end.getTime());
-        System.out.println("Duration: " + String.valueOf(d.getStandardSeconds()) + " seconds");
+        System.out.printf("Duration: %s seconds%n", d.getStandardSeconds());
 
     }
 
-    private final TreeMap<String, LinkItem> allCategories = new TreeMap<String, LinkItem>();
+    private final TreeMap<String, LinkItem> allCategories = new TreeMap<>();
 
-    private final TreeMap<String, LinkItem> allDateCategories = new TreeMap<String, LinkItem>();
+    private final TreeMap<String, LinkItem> allDateCategories = new TreeMap<>();
 
-    private final TreeMap<String, TreeMap<String, LinkItem>> allSeries = new TreeMap<String, TreeMap<String, LinkItem>>();
+    private final TreeMap<String, TreeMap<String, LinkItem>> allSeries = new TreeMap<>();
 
-    private final TreeSet<BlogEntry> theBlog = new TreeSet<BlogEntry>();
+    private final TreeSet<BlogEntry> theBlog = new TreeSet<>();
 
     private final Map<String, BlogEntry> blogById = new HashMap<>();
 
@@ -78,10 +99,9 @@ public class BlogRenderer {
 
     private EntriesWithFiles fileEntries = new EntriesWithFiles();
 
-    private EntriesWithFiles                          imgEntries    = new EntriesWithFiles();
-    private final TreeMap<String, RenderInstructions> overviewPages = new TreeMap<String, RenderInstructions>();
+    private final TreeMap<String, RenderInstructions> overviewPages = new TreeMap<>();
     // for rendering and lookup of old/new URLs
-    private final TreeMap<String, String> mapperOldNewURLs = new TreeMap<String, String>();
+    private final TreeMap<String, String> mapperOldNewURLs = new TreeMap<>();
 
     public BlogRenderer(final Config config) {
         this.config = config;
@@ -121,7 +141,7 @@ public class BlogRenderer {
     /**
      * @return the theBlog
      */
-    public final TreeSet<BlogEntry> getTheBlog() {
+    public final SortedSet<BlogEntry> getTheBlog() {
         return this.theBlog;
     }
 
@@ -129,9 +149,8 @@ public class BlogRenderer {
      * Laedt alle Blog entries von JSON Files auf Disk
      *
      * @param sourceFileOrDirName
-     * @throws IOException
      */
-    public void loadBlogFromDisk(final boolean useYamlFormat) throws IOException {
+    public void loadBlogFromDisk(final boolean useYamlFormat) {
         final File srcDir = new File(this.config.sourceDirectory);
         if (!srcDir.exists()) {
             System.err.print(this.config.sourceDirectory + " doesn't exist!");
@@ -168,7 +187,8 @@ public class BlogRenderer {
                 this.loadCommentsFromDisk(srcDir.getPath() + "/" + curFile);
             }
 
-        } else if (srcDir.getName().endsWith(".comment") || srcDir.getName().endsWith(".json")) {
+        } else if (srcDir.getName().endsWith(".comment")
+                || srcDir.getName().endsWith(JSON_ENDING)) {
             BlogComments bc = BlogComments.loadFromJson(srcDir);
             if (bc != null && bc.isValid()) {
                 String parent = bc.getParentId();
@@ -197,74 +217,75 @@ public class BlogRenderer {
      * @param be
      */
     private void addBlogContext(final BlogEntry be) {
-        if (be != null) {
-            LinkItem catItem = null;
-            final LinkItem dateItem = new LinkItem(be.getDateYear(), this.config.webBlogLocation + be.getDateYear(),
-                    Utils.date2ComparableString(be.getPublishDate()));
-            // Store it in the big blog list for retrieval
-            this.theBlog.add(be);
-            // and lookup
-            this.blogById.put(be.getUNID(), be);
+        if (be == null) {
+            return;
+        }
+        LinkItem catItem = null;
+        final LinkItem dateItem =
+                new LinkItem(be.getDateYear(), this.config.webBlogLocation + be.getDateYear(),
+                        Utils.date2ComparableString(be.getPublishDate()));
+        // Store it in the big blog list for retrieval
+        this.theBlog.add(be);
+        // and lookup
+        this.blogById.put(be.getUNID(), be);
 
-            // Add the links to the mapping
-            // this.config.plinkPrefix will be handled by the HTTP rule...
-            // String key = this.config.plinkPrefix +
-            // be.getOldURL().toLowerCase();
-            final String key = String.valueOf(be.getOldURL()).toLowerCase();
-            final String value = be.getEntryUrl();
-            if (!"null".equals(key)) {
-                this.mapperOldNewURLs.put(key, value);
-            }
+        // Add the links to the mapping
+        // this.config.plinkPrefix will be handled by the HTTP rule...
+        final String key = String.valueOf(be.getOldURL()).toLowerCase();
+        final String value = be.getEntryUrl();
+        if (!"null".equals(key)) {
+            this.mapperOldNewURLs.put(key, value);
+        }
 
-            // Populate the category list
-            for (final String catName : be.getCategory()) {
-                final LinkItem li = new LinkItem(catName);
-                final String catKey = li.place;
-                if (this.allCategories.containsKey(catKey)) {
-                    this.allCategories.get(catKey).count += 1;
-                } else {
-                    catItem = new LinkItem(li.name, this.config.webBlogLocation + this.config.categoriesLocation);
-                    this.allCategories.put(catKey, catItem);
-                }
-
-                this.overviewPages.get("allCategories").addToCategory(be, li.name, li.place);
-
-            }
-            // Date with month and year or only year?
-            // Month - year
-            // this.allDateCategories.put(be.getDateURL(), dateItem);
-            // Year only
-            if (this.allDateCategories.containsKey(be.getDateYear())) {
-                this.allDateCategories.get(be.getDateYear()).count += 1;
+        // Populate the category list
+        for (final String catName : be.getCategory()) {
+            final LinkItem li = new LinkItem(catName);
+            final String catKey = li.place;
+            if (this.allCategories.containsKey(catKey)) {
+                this.allCategories.get(catKey).count += 1;
             } else {
-                this.allDateCategories.put(be.getDateYear(), dateItem);
-            }
-            // Add to the lists for category, month, year
-            this.addToOverviewPage("year", null, be.getDateYear(), be);
-            for (final String catName : be.getCategory()) {
-                final LinkItem li = new LinkItem(catName);
-                this.addToOverviewPage("category", li.name, li.place, be);
-            }
-            this.addToOverviewPage("yearmonth", null, be.getDateYear() + "/" + be.getDateMonthNumber(), be);
-
-            // Add to a series collection if there
-            if (be.getSeries() != null) {
-                final String series = be.getSeries();
-                final TreeMap<String, LinkItem> c = this.allSeries.containsKey(series) ? this.allSeries.get(series)
-                        : new TreeMap<String, LinkItem>();
-                // We sort categories reverse
-                catItem = new LinkItem(be.getTitle(), this.config.webBlogLocation + be.getEntryUrl(),
-                        Utils.date2ComparableString(be.getPublishDate()), true);
-                c.put(be.getEntryUrl(), catItem);
-
-                this.allSeries.put(series, c);
+                catItem = new LinkItem(li.name,
+                        this.config.webBlogLocation + this.config.categoriesLocation);
+                this.allCategories.put(catKey, catItem);
             }
 
-            // System.out.println(be.getEntryUrl());
+            this.overviewPages.get(ALL_CATEGORY_NAME).addToCategory(be, li.name, li.place);
+
+        }
+        // Date with month and year or only year?
+        // Month - year
+        // Year only
+        if (this.allDateCategories.containsKey(be.getDateYear())) {
+            this.allDateCategories.get(be.getDateYear()).count += 1;
+        } else {
+            this.allDateCategories.put(be.getDateYear(), dateItem);
+        }
+        // Add to the lists for category, month, year
+        this.addToOverviewPage("year", null, be.getDateYear(), be);
+        for (final String catName : be.getCategory()) {
+            final LinkItem li = new LinkItem(catName);
+            this.addToOverviewPage(CATEGORY, li.name, li.place, be);
+        }
+        this.addToOverviewPage("yearmonth", null,
+                be.getDateYear() + "/" + be.getDateMonthNumber(), be);
+
+        // Add to a series collection if there
+        if (be.getSeries() != null) {
+            final String series = be.getSeries();
+            final TreeMap<String, LinkItem> c =
+                    this.allSeries.computeIfAbsent(series, k -> new TreeMap<>());
+            // We sort categories reverse
+            catItem =
+                    new LinkItem(be.getTitle(), this.config.webBlogLocation + be.getEntryUrl(),
+                            Utils.date2ComparableString(be.getPublishDate()), true);
+            c.put(be.getEntryUrl(), catItem);
+
+            this.allSeries.put(series, c);
         }
     }
 
-    private void addToOverviewPage(final String type, final String title, final String key, final BlogEntry be) {
+    private void addToOverviewPage(final String type, final String title, final String key,
+            final BlogEntry be) {
         RenderInstructions ri;
         String templateName;
         String outfileName;
@@ -277,18 +298,18 @@ public class BlogRenderer {
 
         if (type.equals("year")) {
             templateName = this.config.YEAR_TEMPLATE;
-            outfileName = key + "/" + this.config.indexFileName;
+            outfileName = key + File.separator + this.config.indexFileName;
             pageTitle = "Year " + key;
             pageLink = key;
 
-        } else if (type.equals("category")) {
+        } else if (type.equals(CATEGORY)) {
             templateName = this.config.CATEGORY_TEMPLATE;
-            outfileName = this.config.categoriesLocation + key + ".html";
+            outfileName = this.config.categoriesLocation + key + HTML_ENDING;
             pageTitle = title;
             pageLink = key;
         } else if (type.equals("yearmonth")) {
             templateName = this.config.MONTH_TEMPLATE;
-            outfileName = key + "/" + this.config.indexFileName;
+            outfileName = key + File.separator + this.config.indexFileName;
             pageTitle = "By Date: " + be.getPublishDateStringShort();
             pageLink = key;
         } else {
@@ -312,9 +333,9 @@ public class BlogRenderer {
         // In year we want to subcategorize with month
         if (type.equals("year")) {
             ri.addToCategory(be, be.getDateMonth(), be.getDateMonthNumber());
-        } else if (type.equals("category")) {
+        } else if (type.equals(CATEGORY)) {
             ri.addToCategory(be, be.getDateYear(), be.getDateYear());
-        }else {      
+        } else {
             ri.add(be);
         }
     }
@@ -341,11 +362,11 @@ public class BlogRenderer {
         return result.toString();
     }
 
-    private String cleanupHTMLlinksAndImages(final String source, final String location) {
+    private String cleanupHTMLlinksAndImages(final String source) {
 
         final org.jsoup.nodes.Document hDoc = Jsoup.parse(source);
-        this.cleanupTagUrlAttribute(hDoc, "img", "src", location);
-        this.cleanupTagUrlAttribute(hDoc, "a", "href", location);
+        this.cleanupTagUrlAttribute(hDoc, "img", "src");
+        this.cleanupTagUrlAttribute(hDoc, "a", "href");
         return hDoc.body().html();
 
     }
@@ -362,14 +383,15 @@ public class BlogRenderer {
     }
 
     private void cleanupOneBlogEntry(final BlogEntry be) {
-        be.setMainBody(this.cleanupHTMLlinksAndImages(be.getMainBody(), be.getEntryUrl()));
+        be.setMainBody(this.cleanupHTMLlinksAndImages(be.getMainBody()));
         if ((be.getMoreBody() != null) && !be.getMoreBody().equals("")) {
-            be.setMoreBody(this.cleanupHTMLlinksAndImages(be.getMoreBody(), be.getEntryUrl()));
+            be.setMoreBody(this.cleanupHTMLlinksAndImages(be.getMoreBody()));
         }
     }
 
-    private void cleanupTagUrlAttribute(final org.jsoup.nodes.Document hDoc, final String elementName,
-            final String attName, final String location) {
+    private void cleanupTagUrlAttribute(final org.jsoup.nodes.Document hDoc,
+            final String elementName,
+            final String attName) {
 
         final String query = elementName + "[" + attName + "]";
         final Elements elements = hDoc.select(query);
@@ -389,38 +411,20 @@ public class BlogRenderer {
     }
 
     /**
-     * Makes sure there is a directory of that Name
-     */
-    private void ensureDirectory(final String directoryName) {
-        final File dir = new File(directoryName);
-        if (dir.exists() && dir.isDirectory()) {
-            return;
-        }
-
-        if (dir.exists()) {
-            // It is NOT a directory, so we strip the file name
-            final String outDirs = directoryName.substring(0, directoryName.lastIndexOf("/"));
-            this.ensureDirectory(outDirs);
-        } else {
-
-            dir.mkdirs();
-        }
-    }
-
-    /**
      * Loads Blog entries from JSON recursively from disk
      *
      * @param sourceFileOrDirName
      * @throws IOException
      */
-    private void loadBlogEntriesFromDisk(final String sourceFileOrDirName, final boolean useYamlFormat) {
+    private void loadBlogEntriesFromDisk(final String sourceFileOrDirName,
+            final boolean useYamlFormat) {
         final File srcDir = new File(sourceFileOrDirName);
         if (!srcDir.exists()) {
             System.err.print(sourceFileOrDirName + " doesn't exist");
             return;
         }
-        
-        int descriptionSize = Integer.valueOf(this.config.topicLength);
+
+        int descriptionSize = Integer.parseInt(this.config.topicLength);
 
         if (srcDir.isDirectory()) {
             System.out.println(srcDir.getAbsolutePath());
@@ -428,39 +432,47 @@ public class BlogRenderer {
             for (final String curFile : srcDir.list()) {
                 this.loadBlogEntriesFromDisk(srcDir.getPath() + "/" + curFile, useYamlFormat);
             }
+            return;
+        }
 
-        } else if ((!useYamlFormat && srcDir.getName().endsWith(".json"))
-                || (useYamlFormat && srcDir.getName().endsWith(".blog"))) {
-            BlogEntry be = null;
-            try {
-                final FileInputStream in = new FileInputStream(new File(sourceFileOrDirName));
-                if (useYamlFormat) {
-                    be = BlogEntry.loadDataFromBlog(in, sourceFileOrDirName, this.config);
-                } else {
-                    be = BlogEntry.loadDataFromJson(in, sourceFileOrDirName, this.config);
+        if (isFileTypeSupported(srcDir, useYamlFormat)) {
+            try (FileInputStream in = new FileInputStream(new File(sourceFileOrDirName))) {
+                final BlogEntry be = useYamlFormat
+                        ? BlogEntry.loadDataFromBlog(in, this.config)
+                        : BlogEntry.loadDataFromJson(in, sourceFileOrDirName, this.config);
+                if ((be != null) && (be.getTitle() != null)
+                        && be.getStatus().equalsIgnoreCase(PUBLISHED)) {
+                    be.setDescriptionSize(descriptionSize);
+                    this.addBlogContext(be);
                 }
-                in.close();
             } catch (final Exception e) {
                 e.printStackTrace();
             }
-            if ((be != null) && (be.getTitle() != null) && be.getStatus().equalsIgnoreCase("Published")) {
-                be.setDescriptionSize(descriptionSize);
-                this.addBlogContext(be);
-            }
-
         }
+
+    }
+
+    /**
+     * Checks if the file ends with json or blog to and has the right indicator
+     * 
+     * @param srcDir
+     * @param useYamlFormat
+     * @return true if it is OK to process
+     */
+    private boolean isFileTypeSupported(final File srcDir,
+            final boolean useYamlFormat) {
+        return (!useYamlFormat && srcDir.getName().endsWith(JSON_ENDING))
+                || (useYamlFormat && srcDir.getName().endsWith(BLOG_ENDING));
 
     }
 
     private EntriesWithFiles loadFileDefFromDisk(final String sourceFileName) {
 
-        EntriesWithFiles result = null;
+        EntriesWithFiles result = new EntriesWithFiles();
         final File source = new File(sourceFileName);
 
-        try {
-            final FileInputStream in = new FileInputStream(source);
+        try (final FileInputStream in = new FileInputStream(source);) {
             result = EntriesWithFiles.loadDataFromJson(in);
-            in.close();
         } catch (final IOException e) {
             e.printStackTrace();
         }
@@ -471,17 +483,20 @@ public class BlogRenderer {
 
     private void loadFileDefinitionsFromDisk(final String sourceDirectory) {
 
-        this.imgEntries = this.loadFileDefFromDisk(sourceDirectory + this.config.imageDirectory + "images.json");
+        final EntriesWithFiles imgEntriest = this
+                .loadFileDefFromDisk(sourceDirectory + this.config.imageDirectory + "images.json");
         this.fileEntries = this
-                .loadFileDefFromDisk(sourceDirectory + this.config.attachmentDirectory + "attachments.json");
-        this.updateMapper(this.mapperOldNewURLs, this.imgEntries);
+                .loadFileDefFromDisk(
+                        sourceDirectory + this.config.attachmentDirectory + "attachments.json");
+        this.updateMapper(this.mapperOldNewURLs, imgEntriest);
         this.updateMapper(this.mapperOldNewURLs, this.fileEntries);
     }
 
     private void render404() {
 
         final String template = this.config.ERROR_TEMPLATE;
-        final String finalDestination = this.config.destinationDirectory + this.config.errorFileName;
+        final String finalDestination =
+                this.config.destinationDirectory + this.config.errorFileName;
 
         final BlogIndex bi = new BlogIndex();
         bi.allCategories = this.allCategories.values();
@@ -491,7 +506,7 @@ public class BlogRenderer {
 
         while (it.hasNext()) {
             final BlogEntry cur = it.next();
-            if (cur.getStatus().equals("Published")) {
+            if (cur.getStatus().equals(PUBLISHED)) {
                 bi.topArticles.add(cur);
             }
         }
@@ -504,8 +519,9 @@ public class BlogRenderer {
     private void renderAttachments() {
 
         final String template = this.config.ATTACHMENT_TEMPLATE;
-        final String finalDestination = this.config.destinationDirectory + this.config.downloadDirectory
-                + this.config.indexFileName;
+        final String finalDestination =
+                this.config.destinationDirectory + this.config.downloadDirectory
+                        + this.config.indexFileName;
         this.renderToDisk(template, finalDestination, this.fileEntries);
 
         System.out.println("Rendered Attachments");
@@ -524,46 +540,17 @@ public class BlogRenderer {
         final String baseDir = this.config.webBlogLocation;
         final BlogIndex seriesIndex = new BlogIndex();
         seriesIndex.topArticles = new BlogEntryCollection(true);
-        final Set<String> completedSeries = new HashSet<String>();
-        final MustacheFactory mf = new DefaultMustacheFactory(new File(this.config.templateDirectory));
+        final Set<String> completedSeries = new HashSet<>();
+        final MustacheFactory mf =
+                new DefaultMustacheFactory(new File(this.config.templateDirectory));
         final Mustache mustache = mf.compile(template);
 
         BlogEntry renderEntry = null;
 
         // Blog entries
         for (final BlogEntry be : this.theBlog) {
-            if ("Published".equalsIgnoreCase(be.getStatus())) {
-                be.cleanupComments();
-                be.setAllCategories(this.allCategories.values());
-                be.setAllDateCategories(this.allDateCategories.descendingMap().values());
-
-                if ((be.getSeries() != null)) {
-                    final String series = be.getSeries();
-                    if (this.allSeries.containsKey(series)) {
-                        final List<LinkItem> l = new ArrayList<LinkItem>();
-                        l.addAll(this.allSeries.get(series).values());
-                        be.setSeriesMember(l);
-                        if (!completedSeries.contains(series)) {
-                            // First entry of series - to be captures
-                            seriesIndex.topArticles.add(be);
-                            completedSeries.add(series);
-                        }
-                    }
-                }
-                // We capture the previous link if we have one - only possible
-                // for the second entry onwards
-                // renderEntry contains the previous Blogentry which is the
-                // needs its nextLink populated by be and be needs its
-                // previousLink
-                // populated by renderentry
-                if (renderEntry != null) {
-                    renderEntry.setNextItem(be.getLinkItem(baseDir));
-                    be.setPreviousItem(renderEntry.getLinkItem(baseDir));
-                    this.renderOneEntry(renderEntry, mustache);
-                }
-
-                renderEntry = be;
-            }
+            renderEntry =
+                    renderLoop(baseDir, seriesIndex, completedSeries, mustache, renderEntry, be);
         }
         // The last entry wasn't rendered in the loop, so we do it here!
         this.renderOneEntry(renderEntry, mustache);
@@ -585,10 +572,50 @@ public class BlogRenderer {
         System.out.println("...Done...");
     }
 
-    private void renderImprint() throws IOException {
+    private BlogEntry renderLoop(final String baseDir, final BlogIndex seriesIndex,
+            final Set<String> completedSeries, final Mustache mustache, BlogEntry renderEntry,
+            final BlogEntry be) {
+        if (PUBLISHED.equalsIgnoreCase(be.getStatus())) {
+            be.cleanupComments();
+            be.setAllCategories(this.allCategories.values());
+            be.setAllDateCategories(this.allDateCategories.descendingMap().values());
+
+            if ((be.getSeries() != null)) {
+                final String series = be.getSeries();
+                if (this.allSeries.containsKey(series)) {
+                    final List<LinkItem> l = new ArrayList<>();
+                    l.addAll(this.allSeries.get(series).values());
+                    be.setSeriesMember(l);
+                    if (!completedSeries.contains(series)) {
+                        // First entry of series - to be captures
+                        seriesIndex.topArticles.add(be);
+                        completedSeries.add(series);
+                    }
+                }
+            }
+            // We capture the previous link if we have one - only possible
+            // for the second entry onwards
+            // renderEntry contains the previous Blogentry which is the
+            // needs its nextLink populated by be and be needs its
+            // previousLink
+            // populated by renderentry
+            if (renderEntry != null) {
+                renderEntry.setNextItem(be.getLinkItem(baseDir));
+                be.setPreviousItem(renderEntry.getLinkItem(baseDir));
+                this.renderOneEntry(renderEntry, mustache);
+            }
+
+            renderEntry = be;
+        }
+        return renderEntry;
+    }
+
+
+    private void renderImprint() {
 
         final String template = this.config.IMPRINT_TEMPLATE;
-        final String finalDestination = this.config.destinationDirectory + this.config.imprintFileName;
+        final String finalDestination =
+                this.config.destinationDirectory + this.config.imprintFileName;
 
         final BlogIndex bi = new BlogIndex();
         bi.allCategories = this.allCategories.values();
@@ -600,7 +627,7 @@ public class BlogRenderer {
 
         while (it.hasNext() && (i < max)) {
             final BlogEntry cur = it.next();
-            if (cur.getStatus().equals("Published")) {
+            if (cur.getStatus().equals(PUBLISHED)) {
                 bi.topArticles.add(cur);
                 i++;
             }
@@ -614,7 +641,8 @@ public class BlogRenderer {
     private void renderIndex() {
 
         final String template = this.config.INDEX_TEMPLATE;
-        final String finalDestination = this.config.destinationDirectory + this.config.indexFileName;
+        final String finalDestination =
+                this.config.destinationDirectory + this.config.indexFileName;
 
         final BlogIndex bi = new BlogIndex();
         bi.allCategories = this.allCategories.values();
@@ -626,7 +654,7 @@ public class BlogRenderer {
 
         while (it.hasNext() && (i < max)) {
             final BlogEntry cur = it.next();
-            if (cur.getStatus().equals("Published")) {
+            if (cur.getStatus().equals(PUBLISHED)) {
                 bi.topArticles.add(cur);
                 i++;
             }
@@ -638,7 +666,8 @@ public class BlogRenderer {
 
     private void renderIndexRSS() {
         final String finalDestination = this.config.destinationDirectory + this.config.indexRSSName;
-        final String finalDestination2 = this.config.destinationDirectory + this.config.indexRSSName2;
+        final String finalDestination2 =
+                this.config.destinationDirectory + this.config.indexRSSName2;
         final BlogOutput out = new BlogOutput(finalDestination);
         final BlogIndex bi = new BlogIndex();
         bi.allCategories = this.allCategories.values();
@@ -650,7 +679,7 @@ public class BlogRenderer {
 
         while (it.hasNext() && (i < max)) {
             final BlogEntry cur = it.next();
-            if (cur.getStatus().equals("Published")) {
+            if (cur.getStatus().equals(PUBLISHED)) {
                 bi.topArticles.add(cur);
                 i++;
             }
@@ -669,7 +698,7 @@ public class BlogRenderer {
         }
 
     }
-    
+
     /**
      * Renders a sitemap.xml file for search engine disgestion
      */
@@ -680,15 +709,14 @@ public class BlogRenderer {
         bi.allCategories = this.allCategories.values();
         bi.allDateCategories = this.allDateCategories.values();
         bi.topArticles = new BlogEntryCollection(true);
-        
-        //TODO: Define and write out sitemap entries 
+
         final int max = 10;
         int i = 0;
         final Iterator<BlogEntry> it = this.theBlog.descendingIterator();
 
         while (it.hasNext() && (i < max)) {
             final BlogEntry cur = it.next();
-            if (cur.getStatus().equals("Published")) {
+            if (cur.getStatus().equals(PUBLISHED)) {
                 bi.topArticles.add(cur);
                 i++;
             }
@@ -699,10 +727,10 @@ public class BlogRenderer {
             rss.write(out);
             out.flush();
             out.close();
-            System.out.println("\n"+Config.SITEMAP_NAME+"Sitemap rendered");
+            System.out.println("\n" + Config.SITEMAP_NAME + "Sitemap rendered");
 
         } catch (final Exception e) {
-            System.out.println("\n"+Config.SITEMAP_NAME+" rendering failed: " + e.getMessage());
+            System.out.println("\n" + Config.SITEMAP_NAME + " rendering failed: " + e.getMessage());
         }
 
     }
@@ -711,15 +739,13 @@ public class BlogRenderer {
      * Creates the map for blog redirections
      *
      * @param destination
-     * @throws FileNotFoundException
+     * @throws IOException
      */
-    private void renderNGinxURLMapper() throws FileNotFoundException {
+    private void renderNGinxURLMapper() throws IOException {
         final File outFile = new File(this.config.destinationDirectory + this.config.urlmapNGinx);
-        if (outFile.exists()) {
-            outFile.delete();
-        }
+        java.nio.file.Files.deleteIfExists(outFile.toPath());
 
-        final ArrayList<String> keysWritten = new ArrayList<String>();
+        final ArrayList<String> keysWritten = new ArrayList<>();
 
         final PrintWriter pw = new PrintWriter(outFile);
 
@@ -746,6 +772,10 @@ public class BlogRenderer {
     }
 
     private void renderOneEntry(final BlogEntry be, final Mustache mustache) {
+
+        if (be == null || mustache == null) {
+            return;
+        }
 
         final String location = this.config.destinationDirectory + be.getEntryUrl();
 
@@ -784,6 +814,9 @@ public class BlogRenderer {
     }
 
     private void renderOverViewPage(final RenderInstructions ri) {
+        if (ri == null) {
+            return;
+        }
         final String template = ri.getFinalTemplateName(this.config.templateDirectory, ri.key);
         final String finalDestination = this.config.destinationDirectory + ri.outFileName;
         boolean goodToGo = false;
@@ -807,42 +840,9 @@ public class BlogRenderer {
         // We check for null before we render
 
         if (ri.members != null) {
-            bi.topArticles = new BlogEntryCollection(!ri.reverse);
-            // Little confusion on sorting order
-            final Iterator<BlogEntry> it = ri.members.iterator();
-            // We need to copy from the render instruction to get the
-            // sequence reversed
-            while (it.hasNext()) {
-                final BlogEntry cur = it.next();
-                if (cur.getStatus().equals("Published")) {
-                    bi.topArticles.add(cur);
-                }
-            }
-            goodToGo = true;
+            goodToGo = processMembers(ri, bi);
         } else if (ri.categories != null) {
-            bi.categorizedEntries = new ArrayList<BlogIndex>();
-            final Iterator<String> it = (ri.reverse) ? ri.categories.keySet().iterator()
-                    : ri.categories.descendingKeySet().iterator();
-            // We need to copy from the render instruction to get the
-            // sequence reversed
-            while (it.hasNext()) {
-                final RenderInstructions curRi = ri.categories.get(it.next());
-                final BlogIndex subBi = new BlogIndex();
-                subBi.allCategories = this.allCategories.values();
-                subBi.allDateCategories = this.allDateCategories.values();
-                subBi.pageTitle = curRi.pageTitle;
-                subBi.pageLink = curRi.pageLink;
-                subBi.topArticles = new BlogEntryCollection(true);
-                bi.categorizedEntries.add(subBi);
-                final Iterator<BlogEntry> subIt = curRi.members.descendingSet().iterator();
-                while (subIt.hasNext()) {
-                    final BlogEntry cur = subIt.next();
-                    if (cur.getStatus().equals("Published")) {
-                        subBi.topArticles.add(cur);
-                    }
-                }
-            }
-            goodToGo = true;
+            goodToGo = processCategorizedMembers(ri, bi);
         }
 
         if (goodToGo) {
@@ -857,6 +857,51 @@ public class BlogRenderer {
             this.allDateCategories.get(ri.key).active = false;
         }
 
+    }
+
+    private boolean processCategorizedMembers(final RenderInstructions ri, final BlogIndex bi) {
+        boolean goodToGo;
+        bi.categorizedEntries = new ArrayList<BlogIndex>();
+        final Iterator<String> it = (ri.reverse) ? ri.categories.keySet().iterator()
+                : ri.categories.descendingKeySet().iterator();
+        // We need to copy from the render instruction to get the
+        // sequence reversed
+        while (it.hasNext()) {
+            final RenderInstructions curRi = ri.categories.get(it.next());
+            final BlogIndex subBi = new BlogIndex();
+            subBi.allCategories = this.allCategories.values();
+            subBi.allDateCategories = this.allDateCategories.values();
+            subBi.pageTitle = curRi.pageTitle;
+            subBi.pageLink = curRi.pageLink;
+            subBi.topArticles = new BlogEntryCollection(true);
+            bi.categorizedEntries.add(subBi);
+            final Iterator<BlogEntry> subIt = curRi.members.descendingSet().iterator();
+            while (subIt.hasNext()) {
+                final BlogEntry cur = subIt.next();
+                if (cur.getStatus().equals(PUBLISHED)) {
+                    subBi.topArticles.add(cur);
+                }
+            }
+        }
+        goodToGo = true;
+        return goodToGo;
+    }
+
+    private boolean processMembers(final RenderInstructions ri, final BlogIndex bi) {
+        boolean goodToGo;
+        bi.topArticles = new BlogEntryCollection(!ri.reverse);
+        // Little confusion on sorting order
+        final Iterator<BlogEntry> it = ri.members.iterator();
+        // We need to copy from the render instruction to get the
+        // sequence reversed
+        while (it.hasNext()) {
+            final BlogEntry cur = it.next();
+            if (cur.getStatus().equals(PUBLISHED)) {
+                bi.topArticles.add(cur);
+            }
+        }
+        goodToGo = true;
+        return goodToGo;
     }
 
     /**
@@ -875,7 +920,8 @@ public class BlogRenderer {
             // We render one offset in the loop to be able to fetch the entry
             nextEntry = new LinkItem(ri.pageTitle, baseDir + ri.outFileName, null);
             if (currentRI != null) {
-                previousEntry = new LinkItem(currentRI.pageTitle, baseDir + currentRI.outFileName, null);
+                previousEntry =
+                        new LinkItem(currentRI.pageTitle, baseDir + currentRI.outFileName, null);
                 currentRI.nextItem = nextEntry;
                 ri.previousItem = previousEntry;
                 this.renderOverViewPage(currentRI);
@@ -886,10 +932,11 @@ public class BlogRenderer {
         this.renderOverViewPage(currentRI);
     }
 
-    private void renderSeries(final BlogIndex bi) throws IOException {
+    private void renderSeries(final BlogIndex bi) {
 
         final String template = this.config.SERIES_TEMPLATE;
-        final String finalDestination = this.config.destinationDirectory + this.config.seriesFileName;
+        final String finalDestination =
+                this.config.destinationDirectory + this.config.seriesFileName;
 
         bi.allCategories = this.allCategories.values();
         bi.allDateCategories = this.allDateCategories.values();
@@ -903,19 +950,22 @@ public class BlogRenderer {
      * saves it to disk if it actually had changed
      * 
      * @param template
-     *            Name of the template to use
+     *        Name of the template to use
      * @param finalDestination
-     *            file location
+     *        file location
      * @param payload
-     *            object to render
+     *        object to render
      */
-    private void renderToDisk(final String template, final String finalDestination, final Object payload) {
-        final MustacheFactory mf = new DefaultMustacheFactory(new File(this.config.templateDirectory));
+    private void renderToDisk(final String template, final String finalDestination,
+            final Object payload) {
+        final MustacheFactory mf =
+                new DefaultMustacheFactory(new File(this.config.templateDirectory));
         final Mustache mustache = mf.compile(template);
         this.renderToDisk(mustache, finalDestination, payload);
     }
 
-    private void renderToDisk(final Mustache mustache, final String finalDestination, final Object payload) {
+    private void renderToDisk(final Mustache mustache, final String finalDestination,
+            final Object payload) {
         final BlogOutput out = new BlogOutput(finalDestination);
         final Writer pw = new PrintWriter(out);
         mustache.execute(pw, payload);
@@ -932,13 +982,11 @@ public class BlogRenderer {
      * Creates the map for blog redirections
      *
      * @param destination
-     * @throws FileNotFoundException
+     * @throws IOException
      */
-    private void renderURLMapper() throws FileNotFoundException {
+    private void renderURLMapper() throws IOException {
         final File outFile = new File(this.config.destinationDirectory + this.config.urlmapFile);
-        if (outFile.exists()) {
-            outFile.delete();
-        }
+        java.nio.file.Files.deleteIfExists(outFile.toPath());
 
         final PrintWriter pw = new PrintWriter(outFile);
         pw.write("# Mapping of legacy blog URL into the new format\n");
@@ -959,14 +1007,10 @@ public class BlogRenderer {
 
         System.out.println(be.getEntryUrl());
 
-        final String location = wheretoSave + be.getEntryUrl() + ".json";
+        final String location = wheretoSave + be.getEntryUrl() + JSON_ENDING;
         final File outFile = new File(location);
-        if (outFile.exists()) {
-            outFile.delete();
-        } else {
-            final String outDirs = location.substring(0, location.lastIndexOf("/"));
-            this.ensureDirectory(outDirs);
-        }
+        java.nio.file.Files.deleteIfExists(outFile.toPath());
+        java.nio.file.Files.createDirectories(outFile.getParentFile().toPath());
 
         final FileOutputStream out = new FileOutputStream(outFile);
         be.saveDatatoJson(out);
