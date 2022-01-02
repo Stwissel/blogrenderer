@@ -1,0 +1,19 @@
+{
+	"folders": [
+		{
+			"path": "."
+		}
+	],
+	"settings": {
+		"java.configuration.updateBuildConfiguration": "interactive",
+		"java.format.settings.url": "/eclipse-java-keep-style.xml",
+		"java.format.settings.profile": "KeepStyle",
+		"plantuml.diagramsRoot": "dos/flows",
+		"plantuml.exportFormat": "png",
+		"plantuml.exportOutDir": "docs/flows",
+		"plantuml.exportSubFolder": false,
+		"java.completion.enabled": true,
+		"java.debug.settings.enableRunDebugCodeLens": true,
+		"java.test.editor.enableShortcuts": true
+	}
+}
