@@ -44,15 +44,13 @@ import java.util.Scanner;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.function.BiConsumer;
-
+import com.google.common.io.Files;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 import org.yaml.snakeyaml.DumperOptions;
 import org.yaml.snakeyaml.DumperOptions.FlowStyle;
 import org.yaml.snakeyaml.Yaml;
 import org.yaml.snakeyaml.nodes.Tag;
-
-import com.google.common.io.Files;
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 
 public class BlogEntry implements Serializable, Comparable<BlogEntry> {
 
@@ -178,6 +176,7 @@ public class BlogEntry implements Serializable, Comparable<BlogEntry> {
 
   static {
     yamlMapper.put("autor", (result, value) -> result.setAuthor(value));
+    yamlMapper.put("author", (result, value) -> result.setAuthor(value));
     yamlMapper.put("location", (result, valueString) -> result.setLocation(valueString));
     yamlMapper.put("status", (result, valueString) -> result.setStatus(valueString));
     yamlMapper.put("title", (result, valueString) -> result.setTitle(valueString));

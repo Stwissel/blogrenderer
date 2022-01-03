@@ -35,7 +35,6 @@ package net.wissel.blogrender;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
-
 import com.vladsch.flexmark.ext.admonition.AdmonitionExtension;
 import com.vladsch.flexmark.html.HtmlRenderer;
 import com.vladsch.flexmark.parser.Parser;
@@ -81,9 +80,9 @@ public class MarkdownConverter {
   private static String fixCodeHTML(final String candidate) {
     final StringBuilder result = new StringBuilder(candidate);
     final Map<String, String> tobeFixed = new HashMap<>();
-    // FIXME: adjust for prismjs
-    tobeFixed.put("<pre><code class=\"language-", "<pre class=\"brush: ");
-    tobeFixed.put("</code></pre>", "</pre>");
+    // Next 2 lines are for prism
+    // tobeFixed.put("<pre><code class=\"language-", "<pre class=\"brush: ");
+    // tobeFixed.put("</code></pre>", "</pre>");
     tobeFixed.put("&rsquo;", "'");
     tobeFixed.put("&rdquo;", "\"");
     tobeFixed.put("&ldquo;", "\"");
