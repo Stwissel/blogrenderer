@@ -25,8 +25,11 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.OutputStream;
+import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
 import java.io.Writer;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
@@ -38,18 +41,15 @@ import java.util.Set;
 import java.util.SortedSet;
 import java.util.TreeMap;
 import java.util.TreeSet;
-
-import net.wissel.blogrender.EntriesWithFiles.FileEntry;
-
-import org.joda.time.Duration;
-import org.jsoup.Jsoup;
-import org.jsoup.nodes.Element;
-import org.jsoup.select.Elements;
-
 import com.github.mustachejava.DefaultMustacheFactory;
 import com.github.mustachejava.Mustache;
 import com.github.mustachejava.MustacheFactory;
 import com.google.common.io.Files;
+import org.joda.time.Duration;
+import org.jsoup.Jsoup;
+import org.jsoup.nodes.Element;
+import org.jsoup.select.Elements;
+import net.wissel.blogrender.EntriesWithFiles.FileEntry;
 
 /**
  * @author stw
@@ -750,7 +750,8 @@ public class BlogRenderer {
 
     final ArrayList<String> keysWritten = new ArrayList<>();
 
-    final PrintWriter pw = new PrintWriter(outFile);
+    final OutputStream out = new FileOutputStream(outFile);
+    final PrintWriter pw = new PrintWriter(new OutputStreamWriter(out, StandardCharsets.UTF_8));
 
     for (final Map.Entry<String, String> e : this.mapperOldNewURLs.entrySet()) {
       final String key = e.getKey().toLowerCase();
@@ -770,6 +771,7 @@ public class BlogRenderer {
     }
     pw.flush();
     pw.close();
+    out.close();
     System.out.println("URL mapping written to file " + outFile.getPath());
 
   }
@@ -970,7 +972,7 @@ public class BlogRenderer {
   private void renderToDisk(final Mustache mustache, final String finalDestination,
       final Object payload) {
     final BlogOutput out = new BlogOutput(finalDestination);
-    final Writer pw = new PrintWriter(out);
+    final Writer pw = new PrintWriter(new OutputStreamWriter(out, StandardCharsets.UTF_8));
     mustache.execute(pw, payload);
     try {
       pw.flush();
@@ -990,8 +992,8 @@ public class BlogRenderer {
   private void renderURLMapper() throws IOException {
     final File outFile = new File(this.config.destinationDirectory + this.config.urlmapFile);
     java.nio.file.Files.deleteIfExists(outFile.toPath());
-
-    final PrintWriter pw = new PrintWriter(outFile);
+    final OutputStream out = new FileOutputStream(outFile);
+    final PrintWriter pw = new PrintWriter(new OutputStreamWriter(out, StandardCharsets.UTF_8));
     pw.write("# Mapping of legacy blog URL into the new format\n");
 
     for (final Map.Entry<String, String> e : this.mapperOldNewURLs.entrySet()) {
@@ -1002,6 +1004,7 @@ public class BlogRenderer {
     }
     pw.flush();
     pw.close();
+    out.close();
     System.out.println("URL mapping written to file " + outFile.getPath());
 
   }

@@ -28,6 +28,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
+import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
 import java.io.Serializable;
 import java.nio.charset.StandardCharsets;
@@ -556,7 +557,7 @@ public class BlogEntry implements Serializable, Comparable<BlogEntry> {
   }
 
   public void saveBlogEntry(final Config config, final FileOutputStream out) {
-    final PrintWriter pw = new PrintWriter(out);
+    final PrintWriter pw = new PrintWriter(new OutputStreamWriter(out, StandardCharsets.UTF_8));
 
     final DumperOptions options = new DumperOptions();
     options.setPrettyFlow(true);
@@ -584,7 +585,7 @@ public class BlogEntry implements Serializable, Comparable<BlogEntry> {
     gb.setPrettyPrinting();
     gb.disableHtmlEscaping();
     final Gson gson = gb.create();
-    final PrintWriter writer = new PrintWriter(out);
+    final PrintWriter writer = new PrintWriter(new OutputStreamWriter(out, StandardCharsets.UTF_8));
     gson.toJson(this, writer);
     writer.flush();
     writer.close();

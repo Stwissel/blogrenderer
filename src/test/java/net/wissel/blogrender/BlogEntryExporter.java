@@ -2,19 +2,20 @@ package net.wissel.blogrender;
 
 import java.io.File;
 import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
+import java.nio.charset.StandardCharsets;
 import java.util.Iterator;
 import java.util.Map;
-
-import org.yaml.snakeyaml.DumperOptions;
-import org.yaml.snakeyaml.DumperOptions.FlowStyle;
-import org.yaml.snakeyaml.Yaml;
-
 import com.google.common.base.Charsets;
 import com.google.common.io.Files;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import org.yaml.snakeyaml.DumperOptions;
+import org.yaml.snakeyaml.DumperOptions.FlowStyle;
+import org.yaml.snakeyaml.Yaml;
 
 public class BlogEntryExporter {
 
@@ -46,7 +47,8 @@ public class BlogEntryExporter {
       final Map<String, Object> bc = be.asMap();
 
       final File outFile = new File(be.metaFileName + BlogEntryExporter.BLOG_EXTENSION);
-      final PrintWriter pw = new PrintWriter(outFile);
+      final PrintWriter pw = new PrintWriter(
+          new OutputStreamWriter(new FileOutputStream(outFile), StandardCharsets.UTF_8));
       yaml.dump(bc, pw);
       pw.println(config.MARKDOW_SEPARATOR);
       pw.println(Files.asCharSource(new File(be.sourceFileName), Charsets.UTF_8).read());
@@ -87,7 +89,8 @@ public class BlogEntryExporter {
     File commentFile = new File(cName);
 
     try {
-      PrintWriter writer = new PrintWriter(commentFile);
+      PrintWriter writer = new PrintWriter(
+          new OutputStreamWriter(new FileOutputStream(commentFile), StandardCharsets.UTF_8));
       gson.toJson(comment, writer);
       writer.flush();
       writer.close();

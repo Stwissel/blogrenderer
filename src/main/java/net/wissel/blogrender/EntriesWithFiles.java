@@ -3,13 +3,14 @@ package net.wissel.blogrender;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
+import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
+import java.nio.charset.StandardCharsets;
 import java.util.Collection;
 import java.util.Date;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.TreeMap;
-
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 
@@ -37,7 +38,7 @@ public class EntriesWithFiles {
     gb.setPrettyPrinting();
     gb.disableHtmlEscaping();
     Gson gson = gb.create();
-    PrintWriter writer = new PrintWriter(out);
+    PrintWriter writer = new PrintWriter(new OutputStreamWriter(out, StandardCharsets.UTF_8));
     gson.toJson(this, writer);
     writer.flush();
     writer.close();

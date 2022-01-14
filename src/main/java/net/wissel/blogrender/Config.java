@@ -9,8 +9,9 @@ import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
-
+import java.nio.charset.StandardCharsets;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 
@@ -153,7 +154,8 @@ public class Config {
       gb.setPrettyPrinting();
       gb.disableHtmlEscaping();
       final Gson gson = gb.create();
-      final PrintWriter writer = new PrintWriter(out);
+      final PrintWriter writer =
+          new PrintWriter(new OutputStreamWriter(out, StandardCharsets.UTF_8));
       gson.toJson(this, writer);
       writer.flush();
       writer.close();

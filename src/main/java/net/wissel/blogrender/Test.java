@@ -4,9 +4,10 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
 import java.io.Writer;
-
+import java.nio.charset.StandardCharsets;
 import com.github.mustachejava.DefaultMustacheFactory;
 import com.github.mustachejava.Mustache;
 import com.github.mustachejava.MustacheFactory;
@@ -31,8 +32,7 @@ public class Test {
 
     FileOutputStream out = new FileOutputStream(new File(destination));
     FileInputStream in = new FileInputStream(new File(dataName));
-    Writer pw = new PrintWriter(out);
-    // Writer pw = new OutputStreamWriter(System.out);
+    Writer pw = new PrintWriter(new OutputStreamWriter(out, StandardCharsets.UTF_8));;
 
     MustacheFactory mf = new DefaultMustacheFactory(new File(templateDir));
     Mustache mustache = mf.compile(template);
