@@ -513,7 +513,10 @@ public class BlogRenderer {
     this.theBlog.stream()
         .filter(cur -> cur.getStatus().equals(PUBLISHED))
         .filter(cur -> !Strings.isNullOrEmpty(cur.getOldURL()))
-        .forEach(bi.relevantArticles::add);
+        .forEach(cur -> {
+          cur.setOldURL(("/blog/d6plinks/" + cur.getOldURL()).toLowerCase());
+          bi.relevantArticles.add(cur);
+        });
 
     this.renderToDisk(template, finalDestination, bi);
     System.out.println("Rendered 404");
