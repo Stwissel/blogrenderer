@@ -47,18 +47,17 @@ public class BlogEntryExporter {
       final Map<String, Object> bc = be.asMap();
 
       final File outFile = new File(be.metaFileName + BlogEntryExporter.BLOG_EXTENSION);
-      final PrintWriter pw = new PrintWriter(
-          new OutputStreamWriter(new FileOutputStream(outFile), StandardCharsets.UTF_8));
-      yaml.dump(bc, pw);
-      pw.println(config.MARKDOW_SEPARATOR);
-      pw.println(Files.asCharSource(new File(be.sourceFileName), Charsets.UTF_8).read());
-      if (be.sourceMoreFileName != null) {
-        final File sourceMore = new File(be.sourceMoreFileName);
+      try (PrintWriter pw = new PrintWriter(
+          new OutputStreamWriter(new FileOutputStream(outFile), StandardCharsets.UTF_8))) {
+        yaml.dump(bc, pw);
         pw.println(config.MARKDOW_SEPARATOR);
-        pw.println(Files.asCharSource(sourceMore, Charsets.UTF_8).read());
+        pw.println(Files.asCharSource(new File(be.sourceFileName), Charsets.UTF_8).read());
+        if (be.sourceMoreFileName != null) {
+          final File sourceMore = new File(be.sourceMoreFileName);
+          pw.println(config.MARKDOW_SEPARATOR);
+          pw.println(Files.asCharSource(sourceMore, Charsets.UTF_8).read());
+        }
       }
-      pw.flush();
-      pw.close();
 
       // Now export comments
       if (!be.getComments().isEmpty()) {
@@ -66,9 +65,8 @@ public class BlogEntryExporter {
         gb.setPrettyPrinting();
         gb.disableHtmlEscaping();
         final Gson gson = gb.create();
-        be.getComments().forEach(comment -> {
-          this.exportComment(gson, this.getCommentDirectory(config, be), comment);
-        });
+        be.getComments().forEach(
+            comment -> this.exportComment(gson, this.getCommentDirectory(config, be), comment));
       }
     }
 
@@ -88,12 +86,10 @@ public class BlogEntryExporter {
     String cName = commentDir + comment.getUNID() + BLOG_COMMENT;
     File commentFile = new File(cName);
 
-    try {
-      PrintWriter writer = new PrintWriter(
-          new OutputStreamWriter(new FileOutputStream(commentFile), StandardCharsets.UTF_8));
+    try (PrintWriter writer = new PrintWriter(
+        new OutputStreamWriter(new FileOutputStream(commentFile), StandardCharsets.UTF_8))) {
       gson.toJson(comment, writer);
       writer.flush();
-      writer.close();
     } catch (FileNotFoundException e) {
       e.printStackTrace();
     }

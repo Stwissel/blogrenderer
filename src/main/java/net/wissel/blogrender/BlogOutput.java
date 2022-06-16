@@ -23,13 +23,10 @@ package net.wissel.blogrender;
 
 import java.io.ByteArrayOutputStream;
 import java.io.File;
-import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.util.Arrays;
-
-import com.google.common.io.Closeables;
 import com.google.common.io.Files;
 
 /**
@@ -75,7 +72,7 @@ public class BlogOutput extends OutputStream {
 
   /**
    * Saves the output stream if it has been modified
-   * 
+   *
    * @return true if it has been saved - false if not
    */
   private boolean save() {
@@ -105,17 +102,15 @@ public class BlogOutput extends OutputStream {
     }
 
     if (saveThis) {
-      OutputStream finalOut = null;
-
       try {
         // Ensure the directory structure exists
         Files.createParentDirs(targetFile);
-        finalOut = new FileOutputStream(targetFile);
+      } catch (final IOException e1) {
+        e1.printStackTrace();
+      }
+
+      try (OutputStream finalOut = new FileOutputStream(targetFile)) {
         finalOut.write(this.out.toByteArray());
-        finalOut.flush();
-        Closeables.close(finalOut, true);
-      } catch (final FileNotFoundException e) {
-        e.printStackTrace();
       } catch (final IOException e) {
         e.printStackTrace();
       }

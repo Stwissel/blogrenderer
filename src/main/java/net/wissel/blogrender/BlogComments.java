@@ -22,7 +22,8 @@
 package net.wissel.blogrender;
 
 import java.io.File;
-import java.io.FileReader;
+import java.io.FileInputStream;
+import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
@@ -33,13 +34,13 @@ import java.util.Date;
 import java.util.Locale;
 import java.util.Map.Entry;
 import java.util.UUID;
+import org.apache.commons.codec.digest.DigestUtils;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
-import org.apache.commons.codec.digest.DigestUtils;
 
 @JsonIgnoreProperties
 public class BlogComments implements Comparable<BlogComments> {
@@ -54,11 +55,11 @@ public class BlogComments implements Comparable<BlogComments> {
   public static BlogComments loadFromJson(final File commentFile) {
     final BlogComments result = new BlogComments();
     if (commentFile.exists() && commentFile.isFile()) {
-      try {
+      try (
+          FileInputStream fin = new FileInputStream(commentFile);
+          Reader in = new InputStreamReader(fin, StandardCharsets.UTF_8)) {
         result.setCreated(new Date(commentFile.lastModified()));
-        final Reader in = new FileReader(commentFile);
         final JsonElement je = JsonParser.parseReader(in);
-        in.close();
         final JsonObject rawComment = je.getAsJsonObject();
 
         rawComment.entrySet()
@@ -90,6 +91,11 @@ public class BlogComments implements Comparable<BlogComments> {
     return result;
   }
 
+  public static BlogComments loadFromJson(final String fileName) {
+    final File commentFile = new File(fileName);
+    return BlogComments.loadFromJson(commentFile);
+  }
+
   private static void handleOneJsonElement(final Entry<String, JsonElement> entry,
       final BlogComments result) {
     final String eName = entry.getKey().toLowerCase();
@@ -108,19 +114,15 @@ public class BlogComments implements Comparable<BlogComments> {
       } else if ("markdown".equals(eName)) {
         result.setMarkdown(value.getAsBoolean());
       } else if ("created".equals(eName)) {
-        SimpleDateFormat sdf = new SimpleDateFormat(IMPORT_DATE_FORMAT, Locale.US);
+        final SimpleDateFormat sdf =
+            new SimpleDateFormat(BlogComments.IMPORT_DATE_FORMAT, Locale.US);
         // "Oct 3, 2017 2:07:04 PM"
-        Date someDate = sdf.parse(value.getAsString());
+        final Date someDate = sdf.parse(value.getAsString());
         result.setCreated(someDate);
       }
-    } catch (Exception e) {
+    } catch (final Exception e) {
       System.err.println(eName + " didn't work:" + e.getMessage());
     }
-  }
-
-  public static BlogComments loadFromJson(final String fileName) {
-    final File commentFile = new File(fileName);
-    return BlogComments.loadFromJson(commentFile);
   }
 
   private boolean valid = true;
@@ -185,8 +187,8 @@ public class BlogComments implements Comparable<BlogComments> {
   }
 
   public String getGravatarURL() {
-    if (((this.gravatarURL == null) || this.gravatarURL.trim().equals(""))
-        && (this.eMail != null)) {
+    if ((this.gravatarURL == null || this.gravatarURL.trim().equals(""))
+        && this.eMail != null) {
       final String emailHash = DigestUtils.md5Hex(this.eMail.toLowerCase().trim());
       this.setGravatarURL(
           BlogComments.GRAVATAR_URL + emailHash + ".jpg?s=" + BlogComments.GRAVATAR_SIZE);
@@ -263,10 +265,10 @@ public class BlogComments implements Comparable<BlogComments> {
    */
   public void saveDatatoJson(final OutputStream out) {
     final Gson gson = new GsonBuilder().setPrettyPrinting().create();
-    final PrintWriter writer = new PrintWriter(new OutputStreamWriter(out, StandardCharsets.UTF_8));
-    gson.toJson(this, writer);
-    writer.flush();
-    writer.close();
+    try (
+        PrintWriter writer = new PrintWriter(new OutputStreamWriter(out, StandardCharsets.UTF_8))) {
+      gson.toJson(this, writer);
+    }
   }
 
   /**

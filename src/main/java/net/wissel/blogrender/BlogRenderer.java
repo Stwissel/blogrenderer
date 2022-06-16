@@ -265,10 +265,10 @@ public class BlogRenderer {
     }
     // Add to the lists for category, month, year
     this.addToOverviewPage("year", null, be.getDateYear(), be);
-    for (final String catName : be.getCategory()) {
+    be.getCategory().forEach((final String catName) -> {
       final LinkItem li = new LinkItem(catName);
       this.addToOverviewPage(CATEGORY, li.name, li.place, be);
-    }
+    });
     this.addToOverviewPage("yearmonth", null,
         be.getDateYear() + "/" + be.getDateMonthNumber(), be);
 
@@ -379,9 +379,7 @@ public class BlogRenderer {
    * attachments by looking at src and href attributes
    */
   private void cleanupLinksAndImages() {
-    for (final BlogEntry be : this.theBlog) {
-      this.cleanupOneBlogEntry(be);
-    }
+    this.theBlog.forEach(this::cleanupOneBlogEntry);
     System.out.println("Completed mapping of Blog entries");
   }
 
@@ -399,7 +397,7 @@ public class BlogRenderer {
     final String query = elementName + "[" + attName + "]";
     final Elements elements = hDoc.select(query);
 
-    for (final Element element : elements) {
+    elements.forEach((final Element element) -> {
       final String attValue = element.attr(attName).trim();
       if (this.mapperOldNewURLs.containsKey(attValue.toLowerCase())) {
         final String replace = this.mapperOldNewURLs.get(attValue.toLowerCase());
@@ -409,7 +407,7 @@ public class BlogRenderer {
         System.out.println(replace);
         element.attr(attName, replace);
       }
-    }
+    });
 
   }
 
@@ -457,7 +455,7 @@ public class BlogRenderer {
 
   /**
    * Checks if the file ends with json or blog to and has the right indicator
-   * 
+   *
    * @param srcDir
    * @param useYamlFormat
    * @return true if it is OK to process
@@ -576,7 +574,7 @@ public class BlogRenderer {
   }
 
   private BlogEntry renderLoop(final String baseDir, final BlogIndex seriesIndex,
-      final Set<String> completedSeries, final Mustache mustache, BlogEntry renderEntry,
+      final Set<String> completedSeries, final Mustache mustache, final BlogEntry renderEntry,
       final BlogEntry be) {
     if (PUBLISHED.equalsIgnoreCase(be.getStatus())) {
       be.cleanupComments();
@@ -608,7 +606,7 @@ public class BlogRenderer {
         this.renderOneEntry(renderEntry, mustache);
       }
 
-      renderEntry = be;
+      return be;
     }
     return renderEntry;
   }
@@ -750,28 +748,26 @@ public class BlogRenderer {
 
     final ArrayList<String> keysWritten = new ArrayList<>();
 
-    final OutputStream out = new FileOutputStream(outFile);
-    final PrintWriter pw = new PrintWriter(new OutputStreamWriter(out, StandardCharsets.UTF_8));
+    try (OutputStream out = new FileOutputStream(outFile);
+        PrintWriter pw = new PrintWriter(new OutputStreamWriter(out, StandardCharsets.UTF_8))) {
 
-    for (final Map.Entry<String, String> e : this.mapperOldNewURLs.entrySet()) {
-      final String key = e.getKey().toLowerCase();
-      final String value = e.getValue();
+      this.mapperOldNewURLs.entrySet().forEach((final Map.Entry<String, String> e) -> {
+        final String key = e.getKey().toLowerCase();
+        final String value = e.getValue();
 
-      final String realKey = this.cleanNginxMapperString(key, true);
-      final String realValue = this.cleanNginxMapperString(value, false);
+        final String realKey = this.cleanNginxMapperString(key, true);
+        final String realValue = this.cleanNginxMapperString(value, false);
 
-      if (!keysWritten.contains(realKey)) {
-        pw.write(realKey);
-        pw.write(" ");
-        pw.write(realValue);
-        pw.write(";\n");
-        keysWritten.add(realKey);
-      }
+        if (!keysWritten.contains(realKey)) {
+          pw.write(realKey);
+          pw.write(" ");
+          pw.write(realValue);
+          pw.write(";\n");
+          keysWritten.add(realKey);
+        }
 
+      });
     }
-    pw.flush();
-    pw.close();
-    out.close();
     System.out.println("URL mapping written to file " + outFile.getPath());
 
   }
@@ -785,11 +781,11 @@ public class BlogRenderer {
     final String location = this.config.destinationDirectory + be.getEntryUrl();
 
     // Set the current context
-    for (final String catName : be.getCategory()) {
+    be.getCategory().forEach((final String catName) -> {
       final LinkItem cat = new LinkItem(catName);
       final String c = cat.place;
       this.allCategories.get(c).active = true;
-    }
+    });
     this.allDateCategories.get(be.getDateYear()).active = true;
 
     if (be.getSeries() != null) {
@@ -803,11 +799,11 @@ public class BlogRenderer {
     this.renderToDisk(mustache, location, be);
 
     // Cleanup
-    for (final String catName : be.getCategory()) {
+    be.getCategory().forEach((final String catName) -> {
       final LinkItem cat = new LinkItem(catName);
       final String c = cat.place;
       this.allCategories.get(c).active = false;
-    }
+    });
     this.allDateCategories.get(be.getDateYear()).active = false;
 
     if (be.getSeries() != null) {
@@ -866,7 +862,7 @@ public class BlogRenderer {
 
   private boolean processCategorizedMembers(final RenderInstructions ri, final BlogIndex bi) {
     boolean goodToGo;
-    bi.categorizedEntries = new ArrayList<BlogIndex>();
+    bi.categorizedEntries = new ArrayList<>();
     final Iterator<String> it = (ri.reverse) ? ri.categories.keySet().iterator()
         : ri.categories.descendingKeySet().iterator();
     // We need to copy from the render instruction to get the
@@ -895,16 +891,10 @@ public class BlogRenderer {
   private boolean processMembers(final RenderInstructions ri, final BlogIndex bi) {
     boolean goodToGo;
     bi.topArticles = new BlogEntryCollection(!ri.reverse);
-    // Little confusion on sorting order
-    final Iterator<BlogEntry> it = ri.members.iterator();
     // We need to copy from the render instruction to get the
     // sequence reversed
-    while (it.hasNext()) {
-      final BlogEntry cur = it.next();
-      if (cur.getStatus().equals(PUBLISHED)) {
-        bi.topArticles.add(cur);
-      }
-    }
+    ri.members.stream().filter(cur -> cur.getStatus().equals(PUBLISHED))
+        .forEach(bi.topArticles::add);
     goodToGo = true;
     return goodToGo;
   }
@@ -953,7 +943,7 @@ public class BlogRenderer {
   /**
    * Renders one object to disk based on a template and a destination only
    * saves it to disk if it actually had changed
-   * 
+   *
    * @param template
    *        Name of the template to use
    * @param finalDestination
@@ -992,19 +982,17 @@ public class BlogRenderer {
   private void renderURLMapper() throws IOException {
     final File outFile = new File(this.config.destinationDirectory + this.config.urlmapFile);
     java.nio.file.Files.deleteIfExists(outFile.toPath());
-    final OutputStream out = new FileOutputStream(outFile);
-    final PrintWriter pw = new PrintWriter(new OutputStreamWriter(out, StandardCharsets.UTF_8));
-    pw.write("# Mapping of legacy blog URL into the new format\n");
+    try (OutputStream out = new FileOutputStream(outFile);
+        PrintWriter pw = new PrintWriter(new OutputStreamWriter(out, StandardCharsets.UTF_8))) {
+      pw.write("# Mapping of legacy blog URL into the new format\n");
 
-    for (final Map.Entry<String, String> e : this.mapperOldNewURLs.entrySet()) {
-      pw.write(e.getKey().toLowerCase());
-      pw.write(" ");
-      pw.write(e.getValue());
-      pw.write("\n");
+      this.mapperOldNewURLs.entrySet().forEach((final Map.Entry<String, String> e) -> {
+        pw.write(e.getKey().toLowerCase());
+        pw.write(" ");
+        pw.write(e.getValue());
+        pw.write("\n");
+      });
     }
-    pw.flush();
-    pw.close();
-    out.close();
     System.out.println("URL mapping written to file " + outFile.getPath());
 
   }
@@ -1018,20 +1006,19 @@ public class BlogRenderer {
     java.nio.file.Files.deleteIfExists(outFile.toPath());
     java.nio.file.Files.createDirectories(outFile.getParentFile().toPath());
 
-    final FileOutputStream out = new FileOutputStream(outFile);
-    be.saveDatatoJson(out);
-    out.flush();
-    out.close();
+    try (FileOutputStream out = new FileOutputStream(outFile)) {
+      be.saveDatatoJson(out);
+    }
   }
 
   private void updateMapper(final Map<String, String> mapper, final EntriesWithFiles outerList) {
-    for (final FileEntry oneEntry : outerList.getAttachmentList()) {
+    outerList.getAttachmentList().forEach((final FileEntry oneEntry) -> {
       final String oldUrlBeginning = oneEntry.url;
-      for (final FileEntry subEntry : oneEntry.subEntries) {
+      oneEntry.subEntries.forEach((final FileEntry subEntry) -> {
         final String old = (oldUrlBeginning + subEntry.subject).toLowerCase();
         mapper.put(old, subEntry.url);
-      }
-    }
+      });
+    });
   }
 
 }

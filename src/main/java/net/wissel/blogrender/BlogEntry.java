@@ -110,27 +110,28 @@ public class BlogEntry implements Serializable, Comparable<BlogEntry> {
   public static BlogEntry loadDataFromBlog(final InputStream in, final Config config) {
     BlogEntry result = null;
 
-    final Scanner scanner = new Scanner(in);
     final StringBuilder yaml = new StringBuilder();
     final StringBuilder rawBody = new StringBuilder();
     final StringBuilder rawMore = new StringBuilder();
-    boolean firstLine = true;
-    boolean inMoreBody = false;
-    while (scanner.hasNextLine()) {
-      final String curLine = scanner.nextLine();
-      if (firstLine) {
-        firstLine = handleFirstLine(curLine, config, yaml);
-      } else {
-        // Second line onwards
-        if (result == null) {
-          result = readBlogEntryFromYaml(yaml, curLine, config);
+
+    try (Scanner scanner = new Scanner(in, "UTF_8")) {
+      boolean firstLine = true;
+      boolean inMoreBody = false;
+      while (scanner.hasNextLine()) {
+        final String curLine = scanner.nextLine();
+        if (firstLine) {
+          firstLine = handleFirstLine(curLine, config, yaml);
         } else {
-          // Raw content - could be mainBody or moreBody
-          inMoreBody = addBlogEntryBody(inMoreBody, rawBody, rawMore, curLine, config);
+          // Second line onwards
+          if (result == null) {
+            result = readBlogEntryFromYaml(yaml, curLine, config);
+          } else {
+            // Raw content - could be mainBody or moreBody
+            inMoreBody = addBlogEntryBody(inMoreBody, rawBody, rawMore, curLine, config);
+          }
         }
       }
     }
-    scanner.close();
 
     // eventually load additional Content from extra file
     return populateResultBody(result, rawBody, rawMore);
@@ -176,15 +177,15 @@ public class BlogEntry implements Serializable, Comparable<BlogEntry> {
   private static final Map<String, BiConsumer<BlogEntry, String>> yamlMapper = new HashMap<>();
 
   static {
-    yamlMapper.put("autor", (result, value) -> result.setAuthor(value));
-    yamlMapper.put("author", (result, value) -> result.setAuthor(value));
-    yamlMapper.put("location", (result, valueString) -> result.setLocation(valueString));
-    yamlMapper.put("status", (result, valueString) -> result.setStatus(valueString));
-    yamlMapper.put("title", (result, valueString) -> result.setTitle(valueString));
-    yamlMapper.put("series", (result, valueString) -> result.setSeries(valueString));
-    yamlMapper.put("unid", (result, valueString) -> result.setUNID(valueString));
-    yamlMapper.put("url", (result, valueString) -> result.setEntryURL(valueString));
-    yamlMapper.put("oldurl", (result, valueString) -> result.setOldURL(valueString));
+    yamlMapper.put("autor", BlogEntry::setAuthor);
+    yamlMapper.put("author", BlogEntry::setAuthor);
+    yamlMapper.put("location", BlogEntry::setLocation);
+    yamlMapper.put("status", BlogEntry::setStatus);
+    yamlMapper.put("title", BlogEntry::setTitle);
+    yamlMapper.put("series", BlogEntry::setSeries);
+    yamlMapper.put("unid", BlogEntry::setUNID);
+    yamlMapper.put("url", BlogEntry::setEntryURL);
+    yamlMapper.put("oldurl", BlogEntry::setOldURL);
     yamlMapper.put("commentsclosed",
         (result, valueString) -> result.setCommentsclosed(Boolean.valueOf(valueString)));
     yamlMapper.put("sourcetype", (result, valueString) -> {
@@ -557,24 +558,22 @@ public class BlogEntry implements Serializable, Comparable<BlogEntry> {
   }
 
   public void saveBlogEntry(final Config config, final FileOutputStream out) {
-    final PrintWriter pw = new PrintWriter(new OutputStreamWriter(out, StandardCharsets.UTF_8));
+    try (PrintWriter pw = new PrintWriter(new OutputStreamWriter(out, StandardCharsets.UTF_8))) {
 
-    final DumperOptions options = new DumperOptions();
-    options.setPrettyFlow(true);
-    options.setAllowUnicode(true);
-    options.setExplicitStart(true);
-    final Yaml yaml = new Yaml(options);
-    pw.println(config.MARKDOW_SEPARATOR);
-    pw.println(yaml.dumpAs(this.asMap(), Tag.MAP, FlowStyle.BLOCK));
-    pw.println(config.MARKDOW_SEPARATOR);
-    pw.println(this.getMainBody());
-    if (!this.getMainBody().isEmpty()) {
+      final DumperOptions options = new DumperOptions();
+      options.setPrettyFlow(true);
+      options.setAllowUnicode(true);
+      options.setExplicitStart(true);
+      final Yaml yaml = new Yaml(options);
       pw.println(config.MARKDOW_SEPARATOR);
-      pw.println(this.getMoreBody());
+      pw.println(yaml.dumpAs(this.asMap(), Tag.MAP, FlowStyle.BLOCK));
+      pw.println(config.MARKDOW_SEPARATOR);
+      pw.println(this.getMainBody());
+      if (!this.getMainBody().isEmpty()) {
+        pw.println(config.MARKDOW_SEPARATOR);
+        pw.println(this.getMoreBody());
+      }
     }
-
-    pw.flush();
-    pw.close();
   }
 
   /**
@@ -585,10 +584,10 @@ public class BlogEntry implements Serializable, Comparable<BlogEntry> {
     gb.setPrettyPrinting();
     gb.disableHtmlEscaping();
     final Gson gson = gb.create();
-    final PrintWriter writer = new PrintWriter(new OutputStreamWriter(out, StandardCharsets.UTF_8));
-    gson.toJson(this, writer);
-    writer.flush();
-    writer.close();
+    try (
+        PrintWriter writer = new PrintWriter(new OutputStreamWriter(out, StandardCharsets.UTF_8))) {
+      gson.toJson(this, writer);
+    }
   }
 
   /**

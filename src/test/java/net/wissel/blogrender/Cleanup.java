@@ -32,12 +32,10 @@ public class Cleanup {
         this.cleanDirectory(curDir.getPath() + "/" + curFile);
       }
     } else {
-      this.deleteEntries.forEach(e -> {
-        if (curDir.getName().endsWith(e)) {
-          System.out.print(curDir.getName());
-          curDir.delete();
-          System.out.println(" - deleted");
-        }
+      this.deleteEntries.stream().filter(e -> curDir.getName().endsWith(e)).forEach(e -> {
+        System.out.print(curDir.getName());
+        curDir.delete();
+        System.out.println(" - deleted");
       });
     }
 

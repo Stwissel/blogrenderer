@@ -16,13 +16,13 @@ import com.google.gson.GsonBuilder;
 
 public class EntriesWithFiles {
 
-  public TreeMap<String, FileEntry> entries = new TreeMap<String, FileEntry>();
+  public TreeMap<String, FileEntry> entries = new TreeMap<>();
   private final boolean isFile = true;
 
   public static EntriesWithFiles loadDataFromJson(InputStream in) {
     EntriesWithFiles result = null;
     Gson gson = new GsonBuilder().create();
-    result = (EntriesWithFiles) gson.fromJson(new InputStreamReader(in), EntriesWithFiles.class);
+    result = gson.fromJson(new InputStreamReader(in), EntriesWithFiles.class);
     return result;
   }
 
@@ -38,10 +38,10 @@ public class EntriesWithFiles {
     gb.setPrettyPrinting();
     gb.disableHtmlEscaping();
     Gson gson = gb.create();
-    PrintWriter writer = new PrintWriter(new OutputStreamWriter(out, StandardCharsets.UTF_8));
-    gson.toJson(this, writer);
-    writer.flush();
-    writer.close();
+    try (
+        PrintWriter writer = new PrintWriter(new OutputStreamWriter(out, StandardCharsets.UTF_8))) {
+      gson.toJson(this, writer);
+    }
   }
 
   public FileEntry add(FileEntry e) {
@@ -68,14 +68,14 @@ public class EntriesWithFiles {
       this.description = description;
     }
 
-    public FileEntry add(String subject, String url, String description, Date created) {
-      FileEntry e = new FileEntry(subject, url, description, created);
+    public FileEntry add(String incomingSubject, String incomingUrl, String incomingDescription, Date incomingCreated) {
+      FileEntry e = new FileEntry(incomingSubject, incomingUrl, incomingDescription, incomingCreated);
       return this.add(e);
     }
 
     public FileEntry add(FileEntry e) {
       if (this.subEntries == null) {
-        this.subEntries = new LinkedList<EntriesWithFiles.FileEntry>();
+        this.subEntries = new LinkedList<>();
       }
       this.subEntries.add(e);
       return e;

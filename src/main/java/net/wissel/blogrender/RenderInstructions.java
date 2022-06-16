@@ -25,7 +25,7 @@ public class RenderInstructions {
 
   public void add(BlogEntry be) {
     if (this.members == null) {
-      this.members = new TreeSet<BlogEntry>();
+      this.members = new TreeSet<>();
     }
     this.members.add(be);
   }
@@ -40,7 +40,7 @@ public class RenderInstructions {
   public void addToCategory(BlogEntry be, String categoryName, String categoryValue) {
     RenderInstructions ri;
     if (this.categories == null) {
-      this.categories = new TreeMap<String, RenderInstructions>();
+      this.categories = new TreeMap<>();
     }
     if (this.categories.containsKey(categoryValue)) {
       ri = this.categories.get(categoryValue);

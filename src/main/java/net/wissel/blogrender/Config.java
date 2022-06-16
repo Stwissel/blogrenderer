@@ -11,6 +11,7 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
+import java.io.Reader;
 import java.nio.charset.StandardCharsets;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -58,11 +59,11 @@ public class Config {
   private static Config load(final File destination) {
     Config result = null;
 
-    try {
+    try (FileInputStream in = new FileInputStream(destination);
+        Reader r = new InputStreamReader(in, StandardCharsets.UTF_8)) {
       System.out.println("Loading parameters from " + destination.getAbsolutePath());
-      final FileInputStream in = new FileInputStream(destination);
       final Gson gson = new GsonBuilder().create();
-      result = gson.fromJson(new InputStreamReader(in), Config.class);
+      result = gson.fromJson(r, Config.class);
       in.close();
     } catch (final IOException e) {
       e.printStackTrace();
@@ -147,19 +148,15 @@ public class Config {
    */
   private void save(final File destination) {
 
-    try {
+    try (FileOutputStream out = new FileOutputStream(destination);
+        PrintWriter writer =
+            new PrintWriter(new OutputStreamWriter(out, StandardCharsets.UTF_8))) {
       System.out.println("Saving parameters to " + destination.getAbsolutePath());
-      final FileOutputStream out = new FileOutputStream(destination);
       final GsonBuilder gb = new GsonBuilder();
       gb.setPrettyPrinting();
       gb.disableHtmlEscaping();
       final Gson gson = gb.create();
-      final PrintWriter writer =
-          new PrintWriter(new OutputStreamWriter(out, StandardCharsets.UTF_8));
       gson.toJson(this, writer);
-      writer.flush();
-      writer.close();
-      out.close();
     } catch (final IOException e) {
       e.printStackTrace();
     }
