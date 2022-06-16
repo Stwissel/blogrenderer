@@ -515,6 +515,7 @@ public class BlogRenderer {
         .filter(cur -> !Strings.isNullOrEmpty(cur.getOldURL()))
         .forEach(cur -> {
           cur.setOldURL(("/blog/d6plinks/" + cur.getOldURL()).toLowerCase());
+          cur.setTitle(cur.getTitle().replace("'", "&#39;"));
           bi.relevantArticles.add(cur);
         });
 
