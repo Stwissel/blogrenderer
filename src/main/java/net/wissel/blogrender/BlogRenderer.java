@@ -44,6 +44,7 @@ import java.util.TreeSet;
 import com.github.mustachejava.DefaultMustacheFactory;
 import com.github.mustachejava.Mustache;
 import com.github.mustachejava.MustacheFactory;
+import com.google.common.base.Strings;
 import com.google.common.io.Files;
 import org.joda.time.Duration;
 import org.jsoup.Jsoup;
@@ -503,14 +504,16 @@ public class BlogRenderer {
     bi.allCategories = this.allCategories.values();
     bi.allDateCategories = this.allDateCategories.values();
     bi.topArticles = new BlogEntryCollection(true);
-    final Iterator<BlogEntry> it = this.theBlog.iterator();
+    bi.relevantArticles = new BlogEntryCollection(true);
 
-    while (it.hasNext()) {
-      final BlogEntry cur = it.next();
-      if (cur.getStatus().equals(PUBLISHED)) {
-        bi.topArticles.add(cur);
-      }
-    }
+    this.theBlog.stream()
+        .filter(cur -> cur.getStatus().equals(PUBLISHED))
+        .forEach(bi.topArticles::add);
+
+    this.theBlog.stream()
+        .filter(cur -> cur.getStatus().equals(PUBLISHED))
+        .filter(cur -> !Strings.isNullOrEmpty(cur.getOldURL()))
+        .forEach(bi.relevantArticles::add);
 
     this.renderToDisk(template, finalDestination, bi);
     System.out.println("Rendered 404");

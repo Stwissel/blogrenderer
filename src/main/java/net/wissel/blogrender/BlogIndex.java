@@ -9,6 +9,7 @@ public class BlogIndex {
   Collection<LinkItem> allCategories;
   Collection<LinkItem> allDateCategories;
   BlogEntryCollection topArticles;
+  BlogEntryCollection relevantArticles;
   String pageTitle;
   String pageLink;
   Collection<BlogIndex> categorizedEntries;
