@@ -114,7 +114,7 @@ public class BlogEntry implements Serializable, Comparable<BlogEntry> {
     final StringBuilder rawBody = new StringBuilder();
     final StringBuilder rawMore = new StringBuilder();
 
-    try (Scanner scanner = new Scanner(in, "UTF_8")) {
+    try (Scanner scanner = new Scanner(in, "UTF-8")) {
       boolean firstLine = true;
       boolean inMoreBody = false;
       while (scanner.hasNextLine()) {
