@@ -32,7 +32,7 @@
   "oldImageLocation": "/blog/Images/",
   "bloghttplocation" : "https://domino.wissel.net/blog/raw/",
   "bloghost" : "wissel.net",
-  "copyRight" : "(C) 2003 - 2021 Stephan H. Wissel, All rights reserved",
+  "copyRight" : "(C) 2003 - 2023 Stephan H. Wissel, All rights reserved",
   "language" : "en,de",
   "rssDescription" : "Thoughts, Insights and Opinions of Stephan H. Wissel. Topics included: Salesforce, Lotus Notes and Domino, IBM Websphere, NodeJS, JavaScript,  J2EE, .Net, Software Archtecture, Personcentric Development, Agile Software, SDLC, Singapore and my Twins",
   "rssLink" : "https://wissel.net/blog/stories.rss",

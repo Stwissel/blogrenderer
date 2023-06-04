@@ -36,6 +36,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
 import com.vladsch.flexmark.ext.admonition.AdmonitionExtension;
+import com.vladsch.flexmark.ext.tables.TablesExtension;
 import com.vladsch.flexmark.html.HtmlRenderer;
 import com.vladsch.flexmark.parser.Parser;
 import com.vladsch.flexmark.parser.PegdownExtensions;
@@ -103,6 +104,7 @@ public class MarkdownConverter {
 
       final ArrayList<Extension> extensions = new ArrayList<>();
       extensions.add(AdmonitionExtension.create());
+      extensions.add(TablesExtension.create());
       final MutableDataHolder options = PegdownOptionsAdapter
           .flexmarkOptions(PegdownExtensions.ALL)
           .toMutable()
