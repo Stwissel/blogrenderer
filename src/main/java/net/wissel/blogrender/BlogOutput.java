@@ -28,6 +28,8 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.util.Arrays;
 import com.google.common.io.Files;
+import com.nixxcode.jvmbrotli.enc.BrotliOutputStream;
+import com.nixxcode.jvmbrotli.enc.Encoder;
 
 /**
  * @author swissel
@@ -37,9 +39,11 @@ public class BlogOutput extends OutputStream {
   private static final int OUT_SIZE = 102400;
   private final ByteArrayOutputStream out;
   private final String location;
+  private final String brotliLocation;
 
   public BlogOutput(final String location) {
     this.location = location;
+    this.brotliLocation = location + BlogRenderer.BROTLI_ENDING;
     this.out = new ByteArrayOutputStream(BlogOutput.OUT_SIZE);
   }
 
@@ -102,11 +106,12 @@ public class BlogOutput extends OutputStream {
     }
 
     if (saveThis) {
+      // Remove an eventual Brotli file to regenerate it
+      final File brotliFile = new File(this.brotliLocation);
+
       try {
         // Ensure the directory structure exists
         Files.createParentDirs(targetFile);
-        // Remove an eventual Brotli file to regenerate it
-        final File brotliFile = new File(targetFile.getPath() + BlogRenderer.BROTLI_ENDING);
         if (brotliFile.exists()) {
           brotliFile.delete();
         }
@@ -114,8 +119,13 @@ public class BlogOutput extends OutputStream {
         e1.printStackTrace();
       }
 
-      try (OutputStream finalOut = new FileOutputStream(targetFile)) {
+      final Encoder.Parameters params = new Encoder.Parameters().setQuality(11);
+
+      try (OutputStream finalOut = new FileOutputStream(targetFile);
+          OutputStream brotliOut = new FileOutputStream(brotliFile);
+          BrotliOutputStream brotliOutputStream = new BrotliOutputStream(brotliOut, params)) {
         finalOut.write(this.out.toByteArray());
+        brotliOutputStream.write(this.out.toByteArray());
       } catch (final IOException e) {
         e.printStackTrace();
       }
