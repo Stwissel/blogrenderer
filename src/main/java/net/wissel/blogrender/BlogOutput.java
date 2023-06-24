@@ -28,8 +28,6 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.util.Arrays;
 import com.google.common.io.Files;
-import com.nixxcode.jvmbrotli.enc.BrotliOutputStream;
-import com.nixxcode.jvmbrotli.enc.Encoder;
 
 /**
  * @author swissel
@@ -119,13 +117,8 @@ public class BlogOutput extends OutputStream {
         e1.printStackTrace();
       }
 
-      final Encoder.Parameters params = new Encoder.Parameters().setQuality(11);
-
-      try (OutputStream finalOut = new FileOutputStream(targetFile);
-          OutputStream brotliOut = new FileOutputStream(brotliFile);
-          BrotliOutputStream brotliOutputStream = new BrotliOutputStream(brotliOut, params)) {
+      try (OutputStream finalOut = new FileOutputStream(targetFile)) {
         finalOut.write(this.out.toByteArray());
-        brotliOutputStream.write(this.out.toByteArray());
       } catch (final IOException e) {
         e.printStackTrace();
       }
