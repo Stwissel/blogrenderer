@@ -105,6 +105,11 @@ public class BlogOutput extends OutputStream {
       try {
         // Ensure the directory structure exists
         Files.createParentDirs(targetFile);
+        // Remove an eventual Brotli file to regenerate it
+        final File brotliFile = new File(targetFile.getPath() + BlogRenderer.BROTLI_ENDING);
+        if (brotliFile.exists()) {
+          brotliFile.delete();
+        }
       } catch (final IOException e1) {
         e1.printStackTrace();
       }

@@ -60,6 +60,7 @@ public class BlogRenderer {
   public static final String JSON_ENDING = ".json";
   public static final String BLOG_ENDING = ".blog";
   public static final String HTML_ENDING = ".html";
+  public static final String BROTLI_ENDING = ".br";
 
   private static final String CATEGORY = "category";
   private static final String PUBLISHED = "Published";
@@ -193,9 +194,9 @@ public class BlogRenderer {
 
     } else if (srcDir.getName().endsWith(".comment")
         || srcDir.getName().endsWith(JSON_ENDING)) {
-      BlogComments bc = BlogComments.loadFromJson(srcDir);
+      final BlogComments bc = BlogComments.loadFromJson(srcDir);
       if (bc != null && bc.isValid()) {
-        String parent = bc.getParentId();
+        final String parent = bc.getParentId();
         if (this.blogById.containsKey(parent)) {
           this.blogById.get(parent).addComment(bc);
         } else {
@@ -426,7 +427,7 @@ public class BlogRenderer {
       return;
     }
 
-    int descriptionSize = Integer.parseInt(this.config.topicLength);
+    final int descriptionSize = Integer.parseInt(this.config.topicLength);
 
     if (srcDir.isDirectory()) {
       System.out.println(srcDir.getAbsolutePath());
@@ -975,7 +976,7 @@ public class BlogRenderer {
       pw.flush();
       pw.close();
       out.close();
-    } catch (IOException e) {
+    } catch (final IOException e) {
       e.printStackTrace();
     }
   }
