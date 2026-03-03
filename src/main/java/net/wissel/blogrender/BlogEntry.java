@@ -186,7 +186,7 @@ public class BlogEntry implements Serializable, Comparable<BlogEntry> {
     yamlMapper.put("unid", BlogEntry::setUNID);
     yamlMapper.put("url", BlogEntry::setEntryURL);
     yamlMapper.put("oldurl", BlogEntry::setOldURL);
-    yamlMapper.put("heroImage", BlogEntry::setHeroImage);
+    yamlMapper.put("heroimage", BlogEntry::setHeroImage);
     yamlMapper.put("commentsclosed",
         (result, valueString) -> result.setCommentsclosed(Boolean.valueOf(valueString)));
     yamlMapper.put("sourcetype", (result, valueString) -> {
@@ -255,7 +255,7 @@ public class BlogEntry implements Serializable, Comparable<BlogEntry> {
     final BiConsumer<BlogEntry, String> mapper =
         yamlMapper.computeIfAbsent(key, k -> (blogEntry, unknownKey) ->
         // We don't add anything to the blog, just log it out
-        System.err.printf("Unknown key encountered (ignoring): %s%n", unknownKey));
+        System.err.printf("Unknown key encountered (ignoring): %s-%s%n", blogEntry, unknownKey));
 
     mapper.accept(result, valueString);
 
