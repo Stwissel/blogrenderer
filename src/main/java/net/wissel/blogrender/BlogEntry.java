@@ -45,13 +45,13 @@ import java.util.Scanner;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.function.BiConsumer;
-import com.google.common.io.Files;
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import org.yaml.snakeyaml.DumperOptions;
 import org.yaml.snakeyaml.DumperOptions.FlowStyle;
 import org.yaml.snakeyaml.Yaml;
 import org.yaml.snakeyaml.nodes.Tag;
+import com.google.common.io.Files;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 
 public class BlogEntry implements Serializable, Comparable<BlogEntry> {
 
@@ -186,6 +186,7 @@ public class BlogEntry implements Serializable, Comparable<BlogEntry> {
     yamlMapper.put("unid", BlogEntry::setUNID);
     yamlMapper.put("url", BlogEntry::setEntryURL);
     yamlMapper.put("oldurl", BlogEntry::setOldURL);
+    yamlMapper.put("heroImage", BlogEntry::setHeroImage);
     yamlMapper.put("commentsclosed",
         (result, valueString) -> result.setCommentsclosed(Boolean.valueOf(valueString)));
     yamlMapper.put("sourcetype", (result, valueString) -> {
@@ -270,6 +271,7 @@ public class BlogEntry implements Serializable, Comparable<BlogEntry> {
   private String UNID;
   private String entryUrl;
   private String oldURL;
+  private String heroImage;
   private Boolean commentsclosed = false;
   private String sourceType;
   private int descriptionSize = 300;
@@ -334,6 +336,7 @@ public class BlogEntry implements Serializable, Comparable<BlogEntry> {
     this.nonNullMapEntry(result, "UNID", this.getUNID());
     this.nonNullMapEntry(result, "entryUrl", this.getEntryUrl());
     this.nonNullMapEntry(result, "oldURL", this.getOldURL());
+    this.nonNullMapEntry(result, "heroImage", this.getHeroImage());
     this.nonNullMapEntry(result, "commentsclosed", this.getCommentsclosed());
     this.nonNullMapEntry(result, "SourceType", this.getSourceType());
     return result;
@@ -372,6 +375,10 @@ public class BlogEntry implements Serializable, Comparable<BlogEntry> {
 
   public String getAuthor() {
     return this.author;
+  }
+
+  public String getHeroImage() {
+    return this.heroImage;
   }
 
   public List<String> getCategory() {
@@ -608,6 +615,10 @@ public class BlogEntry implements Serializable, Comparable<BlogEntry> {
 
   public void setAuthor(final String author) {
     this.author = author;
+  }
+
+  public void setHeroImage(final String heroImage) {
+    this.heroImage = heroImage;
   }
 
   public void setCategory(final List<String> category) {
