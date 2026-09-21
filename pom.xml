@@ -9,19 +9,29 @@
     <description>Renders a blog based on a directory of JSON and Mustache files</description>
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <java.version>1.8</java.version>
+        <java.version>25</java.version>
+        <maven.compiler.release>25</maven.compiler.release>
         <flexmark.version>0.62.2</flexmark.version>
         <maven.version>[3.9.1,)</maven.version>
+        <!-- /why: the shaded jar used to be written to a hardcoded absolute path in the
+             blogsource checkout, so every `mvn package` overwrote the live renderer and no
+             machine but that one Mac could build at all. Default to the standard Maven
+             output directory; installing is now the explicit
+             `-Dblogsource.bin=/path/to/blogsource/bin`. -->
+        <blogsource.bin>${project.build.directory}</blogsource.bin>
 
     </properties>
     <build>
         <plugins>
             <plugin>
                 <artifactId>maven-compiler-plugin</artifactId>
-                <version>3.10.1</version>
+                <version>3.13.0</version>
                 <configuration>
-                    <source>${java.version}</source>
-                    <target>${java.version}</target>
+                    <!-- /why: <release> constrains the API as well as the bytecode, so the
+                         code cannot accidentally link against a JDK method newer than the
+                         declared level. Plugin 3.13.0 is the first with reliable `release`
+                         handling for recent JDKs. -->
+                    <release>${java.version}</release>
                 </configuration>
             </plugin>
             <plugin>
@@ -44,10 +54,7 @@
                                 </transformer>
                             </transformers>
                             <artifactSet />
-                            <!--
-                            outputFile>${project.build.directory}/${project.artifactId}-${project.version}-fat.jar</outputFile -->
-                            <outputFile>/Users/stw/Blog/blogsource/bin/blogrenderer-fat.jar</outputFile>
-                            <!-- ${project.build.directory} -->
+                            <outputFile>${blogsource.bin}/blogrenderer-fat.jar</outputFile>
                         </configuration>
                     </execution>
                 </executions>
