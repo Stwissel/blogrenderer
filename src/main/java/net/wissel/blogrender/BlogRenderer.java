@@ -30,6 +30,7 @@ import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
 import java.io.Writer;
 import java.nio.charset.StandardCharsets;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
@@ -709,39 +710,133 @@ public class BlogRenderer {
   }
 
   /**
-   * Renders a sitemap.xml file for search engine disgestion
+   * Renders a sitemap.xml over every published entry plus the blog root and the
+   * category, year and year/month overview pages.
+   *
+   * /why: the previous implementation delegated to RSSFeedWriter, so sitemap.xml
+   * was a byte-identical copy of stories.rss capped at ten items. Search engines
+   * therefore never learned about the other 1800+ pages on the site.
    */
   private void renderSiteMap() {
     final String finalDestination = this.config.destinationDirectory + Config.SITEMAP_NAME;
-    final BlogOutput out = new BlogOutput(finalDestination);
-    final BlogIndex bi = new BlogIndex();
-    bi.allCategories = this.allCategories.values();
-    bi.allDateCategories = this.allDateCategories.values();
-    bi.topArticles = new BlogEntryCollection(true);
+    final String base = "https://" + this.config.bloghost + this.config.webBlogLocation;
+    final SimpleDateFormat w3c = new SimpleDateFormat("yyyy-MM-dd");
 
-    final int max = 10;
-    int i = 0;
-    final Iterator<BlogEntry> it = this.theBlog.descendingIterator();
+    /*
+     * /why: TreeSet keeps the archive URLs ordered and de-duplicated -- many
+     * entries share a year/month, and every month implies its year. The periods
+     * are derived from getDateYear()/getDateURL() rather than from the entry's
+     * URL because addToOverviewPage() files the archive pages by exactly those
+     * two getters. Both format publishDate in the local time zone, which the
+     * authored URL field does not have to agree with: an entry published
+     * 2002-12-31T16:00:00Z is midnight 1 January in Singapore, so it lives under
+     * 2003/01/ while its permalink still says 2002/12. Deriving from the URL
+     * would invent an archive page the renderer never wrote and omit one it did.
+     */
+    final Set<String> years = new TreeSet<>();
+    final Set<String> months = new TreeSet<>();
+    final StringBuilder sitemap = new StringBuilder();
+    final StringBuilder entryUrls = new StringBuilder();
+    int entryCount = 0;
+    Date newest = null;
 
-    while (it.hasNext() && (i < max)) {
-      final BlogEntry cur = it.next();
-      if (cur.getStatus().equals(PUBLISHED)) {
-        bi.topArticles.add(cur);
-        i++;
+    for (final BlogEntry entry : this.theBlog) {
+      if (!PUBLISHED.equalsIgnoreCase(entry.getStatus())) {
+        continue;
       }
+      years.add(entry.getDateYear());
+      months.add(entry.getDateURL()); // "2026/09"
+      if ((newest == null) || entry.getPublishDate().after(newest)) {
+        newest = entry.getPublishDate();
+      }
+      entryCount++;
+      entryUrls.append("<url><loc>")
+          .append(xmlEscape(base + entry.getEntryUrl()))
+          .append("</loc><lastmod>")
+          .append(w3c.format(entry.getPublishDate()))
+          .append("</lastmod></url>\n");
     }
 
-    final RSSFeedWriter rss = new RSSFeedWriter(this.getConfig(), bi);
+    sitemap.append("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n");
+    sitemap.append("<urlset xmlns=\"http://www.sitemaps.org/schemas/sitemap/0.9\">\n");
+
+    // The blog root, carrying the freshest publish date on the site.
+    sitemap.append("<url><loc>").append(xmlEscape(base)).append("</loc>");
+    if (newest != null) {
+      sitemap.append("<lastmod>").append(w3c.format(newest)).append("</lastmod>");
+    }
+    sitemap.append("</url>\n");
+
+    sitemap.append(entryUrls);
+
+    for (final String year : years) {
+      sitemap.append("<url><loc>").append(xmlEscape(base + year + "/")).append("</loc></url>\n");
+    }
+    for (final String month : months) {
+      sitemap.append("<url><loc>").append(xmlEscape(base + month + "/")).append("</loc></url>\n");
+    }
+
+    /*
+     * /why: the "All Categories" hub at categoriesLocation + index.html (see the
+     * riCat RenderInstructions in the constructor) is rendered on every run and
+     * is the entry point to the whole category tree, so it belongs in the sitemap
+     * alongside the individual category pages.
+     */
+    sitemap.append("<url><loc>")
+        .append(xmlEscape(base + this.config.categoriesLocation))
+        .append("</loc></url>\n");
+
+    /*
+     * /why: iterate the keys, not the LinkItem values. addToOverviewPage() writes
+     * each category page to categoriesLocation + <map key> + ".html", whereas
+     * LinkItem.place already carries webBlogLocation + categoriesLocation baked
+     * in -- reusing it here would emit that prefix twice.
+     */
+    for (final String catKey : this.allCategories.keySet()) {
+      sitemap.append("<url><loc>")
+          .append(xmlEscape(base + this.config.categoriesLocation + catKey + HTML_ENDING))
+          .append("</loc></url>\n");
+    }
+    sitemap.append("</urlset>\n");
+
+    /*
+     * /why: the document is assembled in full before the output is opened.
+     * BlogOutput.close() is what commits the buffer to disk, so writing
+     * incrementally and failing halfway would replace a good sitemap with a
+     * truncated one -- and a malformed sitemap is discarded by crawlers silently.
+     */
+    final BlogOutput out = new BlogOutput(finalDestination);
     try {
-      rss.write(out);
+      out.write(sitemap.toString().getBytes(StandardCharsets.UTF_8));
       out.flush();
       out.close();
-      System.out.println("\n" + Config.SITEMAP_NAME + "Sitemap rendered");
+      System.out.println("\n" + Config.SITEMAP_NAME + " rendered: " + entryCount + " entries, "
+          + years.size() + " years, " + months.size() + " months, "
+          + this.allCategories.size() + " categories");
 
     } catch (final Exception e) {
       System.out.println("\n" + Config.SITEMAP_NAME + " rendering failed: " + e.getMessage());
     }
 
+  }
+
+  /**
+   * Escapes the five predefined XML entities so a URL is safe as element text.
+   *
+   * /why: 15 entries have a "/" in their title and land in nested directories,
+   * and at least one permalink ends in a bare "&". A single unescaped ampersand
+   * makes the whole document malformed, and search engines discard a malformed
+   * sitemap without reporting an error.
+   *
+   * @param in the raw text
+   * @return the text with the five predefined XML entities escaped
+   */
+  private static String xmlEscape(final String in) {
+    return in.replace("&", "&amp;")
+        .replace("<", "&lt;")
+        .replace(">", "&gt;")
+        .replace("\"", "&quot;")
+        .replace("'", "&apos;");
   }
 
   /**
