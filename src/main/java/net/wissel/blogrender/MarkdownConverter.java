@@ -33,8 +33,6 @@
 package net.wissel.blogrender;
 
 import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.Map;
 import com.vladsch.flexmark.ext.admonition.AdmonitionExtension;
 import com.vladsch.flexmark.ext.anchorlink.AnchorLinkExtension;
 import com.vladsch.flexmark.ext.tables.TablesExtension;
@@ -63,40 +61,27 @@ public class MarkdownConverter {
   }
 
   /**
-   * @param mdContenCandidate markdown
-   * @return HTML from Markdown that renders nicely for code highlighter
+   * Converts markdown destined for a page body.
+   *
+   * /why this is now a pass-through: it used to post-process the HTML to undo
+   * flexmark's smart-quote entities (&rsquo; &ldquo; &rdquo;). Those entities
+   * come from the typographic extension, and the extension list this converter
+   * installs -- Admonition, Tables, AnchorLink -- does not include it. The
+   * explicit Parser.EXTENSIONS set below REPLACES the list the pegdown adapter
+   * would otherwise supply, so nothing registers typographic processing and the
+   * entities are never produced. The method walked every post body running
+   * three indexOf/replace loops that could not match. Removing it leaves the
+   * rendered site byte-identical (verified over a full 1833-page render).
+   *
+   * Kept as a named method rather than inlined at the call sites: it marks
+   * "body markdown" as distinct from comment markdown, which is where any
+   * future code-specific handling would belong.
+   *
+   * @param mdContentCandidate markdown
+   * @return HTML from Markdown
    */
   public static String markdown2HtmlWithCode(final String mdContentCandidate) {
-    final String htmlContent = MarkdownConverter.markdown2Html(mdContentCandidate);
-    return MarkdownConverter.fixCodeHTML(htmlContent);
-  }
-
-  /**
-   * Need to fix the way code is rendered. I'm using SyntaxHighlighter, not
-   * just pre/code. Also Flexmark converts ' into &rsquo; need to reverse that
-   * as well as " handling
-   *
-   * @param candidate
-   * @return the fixed html
-   */
-  private static String fixCodeHTML(final String candidate) {
-    final StringBuilder result = new StringBuilder(candidate);
-    final Map<String, String> tobeFixed = new HashMap<>();
-    // Next 2 lines are for prism
-    // tobeFixed.put("<pre><code class=\"language-", "<pre class=\"brush: ");
-    // tobeFixed.put("</code></pre>", "</pre>");
-    tobeFixed.put("&rsquo;", "'");
-    tobeFixed.put("&rdquo;", "\"");
-    tobeFixed.put("&ldquo;", "\"");
-
-    tobeFixed.forEach((searchFor, replaceWith) -> {
-      while (result.indexOf(searchFor) > -1) {
-        final int startPos = result.indexOf(searchFor);
-        result.replace(startPos, startPos + searchFor.length(), replaceWith);
-      }
-    });
-
-    return result.toString();
+    return MarkdownConverter.markdown2Html(mdContentCandidate);
   }
 
   private static DataHolder getOptions() {
