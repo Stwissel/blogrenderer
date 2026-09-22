@@ -252,12 +252,21 @@ public class BlogEntry implements Serializable, Comparable<BlogEntry> {
       return;
     }
 
-    final BiConsumer<BlogEntry, String> mapper =
-        yamlMapper.computeIfAbsent(key, k -> (blogEntry, unknownKey) ->
-        // We don't add anything to the blog, just log it out
-        System.err.printf("Unknown key encountered (ignoring): %s-%s%n", blogEntry, unknownKey));
-
-    mapper.accept(result, valueString);
+    final BiConsumer<BlogEntry, String> mapper = yamlMapper.get(key);
+    if (mapper != null) {
+      mapper.accept(result, valueString);
+    } else {
+      /*
+       * /why a plain get rather than computeIfAbsent: computeIfAbsent INSERTED
+       * the logging lambda into yamlMapper, which is static and shared across
+       * the whole run. The map therefore grew by one dead entry per distinct
+       * unrecognised frontmatter key -- a slow leak, and one that made the
+       * registry of known keys untrustworthy. The old message also passed
+       * (blogEntry, unknownKey) to a "%s-%s" format, printing the entry's whole
+       * JSON before the value, and never the key that was actually unknown.
+       */
+      System.err.printf("Unknown frontmatter key ignored: %s%n", keyCandidate);
+    }
 
   }
 
