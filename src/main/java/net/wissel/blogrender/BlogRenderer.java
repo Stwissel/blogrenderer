@@ -36,6 +36,7 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -62,6 +63,9 @@ public class BlogRenderer {
   public static final String BLOG_ENDING = ".blog";
   public static final String HTML_ENDING = ".html";
   public static final String BROTLI_ENDING = ".br";
+
+  /** The XML prolog every sitemap document opens with. */
+  private static final String XML_DECLARATION = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n";
 
   private static final String CATEGORY = "category";
   private static final String PUBLISHED = "Published";
@@ -715,15 +719,18 @@ public class BlogRenderer {
   }
 
   /**
-   * Renders a sitemap.xml over every published entry plus the blog root and the
-   * category, year and year/month overview pages.
+   * Renders the sitemap index and its four child sitemaps.
    *
-   * /why: the previous implementation delegated to RSSFeedWriter, so sitemap.xml
-   * was a byte-identical copy of stories.rss capped at ten items. Search engines
-   * therefore never learned about the other 1800+ pages on the site.
+   * /why: one flat urlset of ~1800 URLs is valid but useless for diagnosis --
+   * Search Console reports indexing coverage per submitted sitemap, so a single
+   * file yields a single undifferentiated number. Splitting posts, archives,
+   * categories and standing pages into children of a sitemapindex gives four
+   * separately reported groups. sitemap.xml itself becomes the index;
+   * build-blog.sh promotes it to the site root, because the sitemaps protocol
+   * only lets a sitemap declare URLs at or below its own directory and the site
+   * root, /mealplan.html and /code/ all sit above /blog/.
    */
   private void renderSiteMap() {
-    final String finalDestination = this.config.destinationDirectory + Config.SITEMAP_NAME;
     final String base = "https://" + this.config.bloghost + this.config.webBlogLocation;
     final SimpleDateFormat w3c = new SimpleDateFormat("yyyy-MM-dd");
 
@@ -740,8 +747,7 @@ public class BlogRenderer {
      */
     final Set<String> years = new TreeSet<>();
     final Set<String> months = new TreeSet<>();
-    final StringBuilder sitemap = new StringBuilder();
-    final StringBuilder entryUrls = new StringBuilder();
+    final StringBuilder posts = new StringBuilder();
     int entryCount = 0;
     Date newest = null;
 
@@ -755,74 +761,128 @@ public class BlogRenderer {
         newest = entry.getPublishDate();
       }
       entryCount++;
-      entryUrls.append("<url><loc>")
-          .append(xmlEscape(base + entry.getEntryUrl()))
-          .append("</loc><lastmod>")
-          .append(w3c.format(entry.getPublishDate()))
-          .append("</lastmod></url>\n");
+      posts.append(BlogRenderer.urlElement(base + entry.getEntryUrl(),
+          w3c.format(entry.getPublishDate())));
     }
 
-    sitemap.append("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n");
-    sitemap.append("<urlset xmlns=\"http://www.sitemaps.org/schemas/sitemap/0.9\">\n");
+    /*
+     * /why: every one of the four children is derived from the same corpus of
+     * published entries -- a new post adds an archive month, may add a category
+     * and always changes all.html -- so the newest publish date is the honest
+     * lastmod for all four. With no entries at all there is nothing to date, so
+     * fall back to today rather than emitting a bare <sitemap> element.
+     */
+    final String lastmod = w3c.format((newest == null) ? new Date() : newest);
 
-    // The blog root, carrying the freshest publish date on the site.
-    sitemap.append("<url><loc>").append(xmlEscape(base)).append("</loc>");
-    if (newest != null) {
-      sitemap.append("<lastmod>").append(w3c.format(newest)).append("</lastmod>");
-    }
-    sitemap.append("</url>\n");
-
-    sitemap.append(entryUrls);
-
+    final StringBuilder archives = new StringBuilder();
     for (final String year : years) {
-      sitemap.append("<url><loc>").append(xmlEscape(base + year + "/")).append("</loc></url>\n");
+      archives.append(BlogRenderer.urlElement(base + year + "/", null));
     }
     for (final String month : months) {
-      sitemap.append("<url><loc>").append(xmlEscape(base + month + "/")).append("</loc></url>\n");
+      archives.append(BlogRenderer.urlElement(base + month + "/", null));
     }
 
     /*
      * /why: the "All Categories" hub at categoriesLocation + index.html (see the
      * riCat RenderInstructions in the constructor) is rendered on every run and
      * is the entry point to the whole category tree, so it belongs in the sitemap
-     * alongside the individual category pages.
+     * alongside the individual category pages. It is declared as the directory
+     * URL, which is how the archive pages are declared too.
+     *
+     * Iterate the category keys, not the LinkItem values: addToOverviewPage()
+     * writes each category page to categoriesLocation + <map key> + ".html",
+     * whereas LinkItem.place already carries webBlogLocation + categoriesLocation
+     * baked in -- reusing it here would emit that prefix twice.
      */
-    sitemap.append("<url><loc>")
-        .append(xmlEscape(base + this.config.categoriesLocation))
-        .append("</loc></url>\n");
-
-    /*
-     * /why: iterate the keys, not the LinkItem values. addToOverviewPage() writes
-     * each category page to categoriesLocation + <map key> + ".html", whereas
-     * LinkItem.place already carries webBlogLocation + categoriesLocation baked
-     * in -- reusing it here would emit that prefix twice.
-     */
+    final StringBuilder categories = new StringBuilder();
+    categories.append(BlogRenderer.urlElement(base + this.config.categoriesLocation, null));
     for (final String catKey : this.allCategories.keySet()) {
-      sitemap.append("<url><loc>")
-          .append(xmlEscape(base + this.config.categoriesLocation + catKey + HTML_ENDING))
-          .append("</loc></url>\n");
+      categories.append(BlogRenderer.urlElement(
+          base + this.config.categoriesLocation + catKey + BlogRenderer.HTML_ENDING, null));
     }
-    sitemap.append("</urlset>\n");
 
     /*
-     * /why: the document is assembled in full before the output is opened.
-     * BlogOutput.close() is what commits the buffer to disk, so writing
-     * incrementally and failing halfway would replace a good sitemap with a
-     * truncated one -- and a malformed sitemap is discarded by crawlers silently.
+     * /why: the standing pages were missing from the sitemap entirely -- they are
+     * rendered on every run but belong to no category, year or month, so nothing
+     * in the loops above reaches them. Their names come from Config so a renamed
+     * page cannot silently drop out. downloadDirectory is a directory whose
+     * index.html is the rendered page, so it is declared as a directory URL, the
+     * same form used for the archives and the category hub.
      */
-    final BlogOutput out = new BlogOutput(finalDestination);
+    final StringBuilder standing = new StringBuilder();
+    standing.append(BlogRenderer.urlElement(base, lastmod));
+    for (final String page : new String[] {this.config.allIndexFileName,
+        this.config.seriesFileName, this.config.imprintFileName, this.config.downloadDirectory}) {
+      standing.append(BlogRenderer.urlElement(base + page, null));
+    }
+
+    final Map<String, StringBuilder> children = new LinkedHashMap<>();
+    children.put(Config.SITEMAP_POSTS, posts);
+    children.put(Config.SITEMAP_ARCHIVES, archives);
+    children.put(Config.SITEMAP_CATEGORIES, categories);
+    children.put(Config.SITEMAP_PAGES, standing);
+
+    final StringBuilder index = new StringBuilder(BlogRenderer.XML_DECLARATION);
+    index.append("<sitemapindex xmlns=\"http://www.sitemaps.org/schemas/sitemap/0.9\">\n");
+
+    for (final Map.Entry<String, StringBuilder> child : children.entrySet()) {
+      final StringBuilder urlset = new StringBuilder(BlogRenderer.XML_DECLARATION);
+      urlset.append("<urlset xmlns=\"http://www.sitemaps.org/schemas/sitemap/0.9\">\n")
+          .append(child.getValue())
+          .append("</urlset>\n");
+      this.writeSiteMapFile(child.getKey(), urlset.toString());
+
+      index.append("<sitemap><loc>")
+          .append(BlogRenderer.xmlEscape(base + child.getKey()))
+          .append("</loc><lastmod>")
+          .append(lastmod)
+          .append("</lastmod></sitemap>\n");
+    }
+    index.append("</sitemapindex>\n");
+
+    this.writeSiteMapFile(Config.SITEMAP_NAME, index.toString());
+
+    System.out.println("\n" + Config.SITEMAP_NAME + " index rendered: " + entryCount
+        + " entries, " + years.size() + " years, " + months.size() + " months, "
+        + this.allCategories.size() + " categories, 4 standing pages");
+  }
+
+  /**
+   * Renders one &lt;url&gt; element with its location escaped.
+   *
+   * @param loc the absolute URL
+   * @param lastmod the W3C date, or null to omit the element
+   * @return the &lt;url&gt; element, newline terminated
+   */
+  private static String urlElement(final String loc, final String lastmod) {
+    final StringBuilder url =
+        new StringBuilder("<url><loc>").append(BlogRenderer.xmlEscape(loc)).append("</loc>");
+    if (lastmod != null) {
+      url.append("<lastmod>").append(lastmod).append("</lastmod>");
+    }
+    return url.append("</url>\n").toString();
+  }
+
+  /**
+   * Writes one finished sitemap document to the destination directory.
+   *
+   * /why: the document is assembled in full by the caller before the output is
+   * opened. BlogOutput.close() is what commits the buffer to disk, so writing
+   * incrementally and failing halfway would replace a good sitemap with a
+   * truncated one -- and a malformed sitemap is discarded by crawlers silently.
+   *
+   * @param fileName the file name inside destinationDirectory
+   * @param document the complete XML document
+   */
+  private void writeSiteMapFile(final String fileName, final String document) {
+    final BlogOutput out = new BlogOutput(this.config.destinationDirectory + fileName);
     try {
-      out.write(sitemap.toString().getBytes(StandardCharsets.UTF_8));
+      out.write(document.getBytes(StandardCharsets.UTF_8));
       out.flush();
       out.close();
-      System.out.println("\n" + Config.SITEMAP_NAME + " rendered: " + entryCount + " entries, "
-          + years.size() + " years, " + months.size() + " months, "
-          + this.allCategories.size() + " categories");
-
     } catch (final Exception e) {
-      System.out.println("\n" + Config.SITEMAP_NAME + " rendering failed: " + e.getMessage());
+      System.out.println("\n" + fileName + " rendering failed: " + e.getMessage());
     }
-
   }
 
   /**

@@ -46,6 +46,17 @@ public class Config {
 
   public static final String SITEMAP_NAME = "sitemap.xml";
 
+  /*
+   * /why: SITEMAP_NAME is the <sitemapindex>; these four are the <urlset>
+   * children it points at. Search Console reports indexing coverage per
+   * submitted sitemap, so splitting the site into groups turns one opaque
+   * number into four diagnosable ones.
+   */
+  public static final String SITEMAP_POSTS = "sitemap-posts.xml";
+  public static final String SITEMAP_ARCHIVES = "sitemap-archives.xml";
+  public static final String SITEMAP_CATEGORIES = "sitemap-categories.xml";
+  public static final String SITEMAP_PAGES = "sitemap-pages.xml";
+
   public static final String CONFIG_NAME = "BlogRenderConfig.json";
 
   public static Config get() {
