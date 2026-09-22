@@ -265,12 +265,26 @@ public class BlogEntry implements Serializable, Comparable<BlogEntry> {
        * (blogEntry, unknownKey) to a "%s-%s" format, printing the entry's whole
        * JSON before the value, and never the key that was actually unknown.
        */
+      // Keep the value for templates: original key case, original YAML type,
+      // so both {{#meta.draft}} and {{#meta.tags}}{{.}}{{/meta.tags}} work.
+      result.meta.put(String.valueOf(keyCandidate), value);
       System.err.printf("Unknown frontmatter key ignored: %s%n", keyCandidate);
     }
 
   }
 
   private String author;
+
+  /**
+   * Frontmatter keys the typed model above does not recognise, kept verbatim
+   * so templates can read them as {{#meta.whatever}}.
+   *
+   * /why transient: this is a render-time convenience only. Without it Gson
+   * would start writing a "meta" object into every cached entry JSON, changing
+   * saveDatatoJson's output and invalidating the on-disk cache for no reason.
+   */
+  private final transient Map<String, Object> meta = new HashMap<>();
+
   private List<String> category = new ArrayList<>();
   private Date publishDate = new Date();
   private String location;
@@ -381,6 +395,16 @@ public class BlogEntry implements Serializable, Comparable<BlogEntry> {
    */
   public Config getConfig() {
     return Config.get();
+  }
+
+  /**
+   * Unrecognised frontmatter keys, for template use. Never populated for a
+   * BlogEntry restored from the JSON cache -- the field is transient by design.
+   *
+   * @return the unrecognised frontmatter, keyed by its original spelling
+   */
+  public Map<String, Object> getMeta() {
+    return this.meta;
   }
 
   /**
