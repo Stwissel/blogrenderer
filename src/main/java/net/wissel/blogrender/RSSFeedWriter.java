@@ -94,7 +94,7 @@ public class RSSFeedWriter {
 
     createNode(eventWriter, "copyright", this.config.copyRight);
 
-    createNode(eventWriter, "pubdate", this.getCurrentDateForFeed());
+    createNode(eventWriter, "pubDate", this.getCurrentDateForFeed());
 
     for (BlogEntry entry : this.blogindex.topArticles) {
       eventWriter.add(eventFactory.createStartElement("", "", "item"));
