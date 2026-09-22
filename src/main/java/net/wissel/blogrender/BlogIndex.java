@@ -18,6 +18,11 @@ public class BlogIndex {
   String pageTitle;
   String pageLink;
   Collection<BlogIndex> categorizedEntries;
+
+  /**
+   * True only on the series overview page, so nav_main can mark its "Series"
+   * item active. Left null (falsy to Mustache) on every other page.
+   */
   Boolean isSeries;
 
   /**

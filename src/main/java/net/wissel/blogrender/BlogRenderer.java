@@ -550,6 +550,11 @@ public class BlogRenderer {
     final String baseDir = this.config.webBlogLocation;
     final BlogIndex seriesIndex = new BlogIndex();
     seriesIndex.topArticles = new BlogEntryCollection(true);
+    // /why: nav_main tests {{#isSeries}} to mark its "Series" item active.
+    // The flag was declared on BlogIndex but never assigned anywhere, so the
+    // section never fired and series.html was the one page with no active nav
+    // item. Every other BlogIndex leaves it null, which Mustache reads as false.
+    seriesIndex.isSeries = Boolean.TRUE;
     final Set<String> completedSeries = new HashSet<>();
     final MustacheFactory mf =
         new DefaultMustacheFactory(new File(this.config.templateDirectory));
