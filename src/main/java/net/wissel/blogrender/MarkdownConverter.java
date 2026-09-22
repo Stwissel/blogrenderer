@@ -36,6 +36,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
 import com.vladsch.flexmark.ext.admonition.AdmonitionExtension;
+import com.vladsch.flexmark.ext.anchorlink.AnchorLinkExtension;
 import com.vladsch.flexmark.ext.tables.TablesExtension;
 import com.vladsch.flexmark.html.HtmlRenderer;
 import com.vladsch.flexmark.parser.Parser;
@@ -105,10 +106,16 @@ public class MarkdownConverter {
       final ArrayList<Extension> extensions = new ArrayList<>();
       extensions.add(AdmonitionExtension.create());
       extensions.add(TablesExtension.create());
+      extensions.add(AnchorLinkExtension.create());
       final MutableDataHolder options = PegdownOptionsAdapter
           .flexmarkOptions(PegdownExtensions.ALL)
           .toMutable()
-          .set(com.vladsch.flexmark.parser.Parser.EXTENSIONS, extensions);
+          .set(com.vladsch.flexmark.parser.Parser.EXTENSIONS, extensions)
+          // /why: default wrapText=true would wrap the heading's own text in the
+          // generated <a href="#id">, turning every heading into a visible link.
+          // We only want the id (for deep-linking), not a visual/behavioural change
+          // to existing headings, so keep the anchor empty and id-only.
+          .set(AnchorLinkExtension.ANCHORLINKS_WRAP_TEXT, false);
       MarkdownConverter.optionHolder = options;
     }
     return MarkdownConverter.optionHolder;

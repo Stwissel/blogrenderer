@@ -215,6 +215,12 @@
             <artifactId>flexmark-ext-tables</artifactId>
             <version>${flexmark.version}</version>
         </dependency>
+        <!-- https://mvnrepository.com/artifact/com.vladsch.flexmark/flexmark-ext-anchorlink -->
+        <dependency>
+            <groupId>com.vladsch.flexmark</groupId>
+            <artifactId>flexmark-ext-anchorlink</artifactId>
+            <version>${flexmark.version}</version>
+        </dependency>
         <!-- https://mvnrepository.com/artifact/com.fasterxml.jackson.core/jackson-annotations -->
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
