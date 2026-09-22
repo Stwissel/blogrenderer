@@ -83,6 +83,16 @@ public class EntriesWithFiles {
 
   }
 
+  /**
+   * Exposes the render configuration to Mustache, so templates need not
+   * hardcode site constants such as the canonical host or the copyright.
+   *
+   * @return the render configuration singleton
+   */
+  public Config getConfig() {
+    return Config.get();
+  }
+
   public boolean isFile() {
     return this.isFile;
   }

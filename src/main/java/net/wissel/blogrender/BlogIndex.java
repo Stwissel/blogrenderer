@@ -2,6 +2,11 @@ package net.wissel.blogrender;
 
 import java.util.Collection;
 
+/**
+ * Scope object backing every aggregate page: the front page, the year and
+ * month archives, the category pages, the "all entries" page and the series
+ * overview. Fields are read directly by the Mustache templates.
+ */
 public class BlogIndex {
 
   LinkItem previousItem;
@@ -14,4 +19,14 @@ public class BlogIndex {
   String pageLink;
   Collection<BlogIndex> categorizedEntries;
   Boolean isSeries;
+
+  /**
+   * Exposes the render configuration to Mustache, so templates need not
+   * hardcode site constants such as the canonical host or the copyright.
+   *
+   * @return the render configuration singleton
+   */
+  public Config getConfig() {
+    return Config.get();
+  }
 }

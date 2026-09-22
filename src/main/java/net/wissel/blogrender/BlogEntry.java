@@ -360,6 +360,21 @@ public class BlogEntry implements Serializable, Comparable<BlogEntry> {
   }
 
   /**
+   * Exposes the render configuration to Mustache, so templates need not
+   * hardcode site constants such as the canonical host or the copyright.
+   *
+   * /why a getter rather than a field: Config is a singleton and BlogEntry is
+   * Serializable -- a field would be written into the serialized form and into
+   * saveDatatoJson's output. A getter is invisible to both and still resolves
+   * as {{config.bloghost}} in a template.
+   *
+   * @return the render configuration singleton
+   */
+  public Config getConfig() {
+    return Config.get();
+  }
+
+  /**
    * @return the allCategories
    */
   public Collection<LinkItem> getAllCategories() {
