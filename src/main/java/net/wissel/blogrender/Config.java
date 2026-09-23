@@ -47,15 +47,23 @@ public class Config {
   public static final String SITEMAP_NAME = "sitemap.xml";
 
   /*
-   * /why: SITEMAP_NAME is the <sitemapindex>; these four are the <urlset>
-   * children it points at. Search Console reports indexing coverage per
-   * submitted sitemap, so splitting the site into groups turns one opaque
-   * number into four diagnosable ones.
+   * /why: SITEMAP_NAME is the <sitemapindex>; the <urlset> children it points at
+   * are named SITEMAP_PREFIX + <key> + SITEMAP_SUFFIX, one per year ("2014") and
+   * one per category slug ("java"), plus SITEMAP_PAGES for the standing pages.
+   * Search Console reports indexing coverage per submitted sitemap, so a child
+   * per topic turns one opaque number into a per-topic diagnosis.
    */
-  public static final String SITEMAP_POSTS = "sitemap-posts.xml";
-  public static final String SITEMAP_ARCHIVES = "sitemap-archives.xml";
-  public static final String SITEMAP_CATEGORIES = "sitemap-categories.xml";
+  public static final String SITEMAP_PREFIX = "sitemap-";
+  public static final String SITEMAP_SUFFIX = ".xml";
   public static final String SITEMAP_PAGES = "sitemap-pages.xml";
+
+  /*
+   * /why: a category slug is [a-z0-9]+ (LinkItem.cleanPlace) and a year key is
+   * four digits, so a category literally named "2014" would write over the year
+   * child. No such category exists today; this suffix makes the clash impossible
+   * rather than latent.
+   */
+  public static final String SITEMAP_CATEGORY_DISAMBIGUATOR = "-category";
 
   public static final String CONFIG_NAME = "BlogRenderConfig.json";
 

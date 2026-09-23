@@ -730,121 +730,262 @@ public class BlogRenderer {
    * only lets a sitemap declare URLs at or below its own directory and the site
    * root, /mealplan.html and /code/ all sit above /blog/.
    */
+  /**
+   * Renders the sitemap index and every child it points at: one child per year,
+   * one per category, and one for the standing pages.
+   *
+   * /why: Search Console reports indexing coverage per submitted sitemap, so the
+   * grouping decides what can be diagnosed. Grouping by year and by topic answers
+   * "is my Java writing being indexed?"; grouping by page type only answered "are
+   * posts being indexed?". Each child opens with the summary page that owns it,
+   * so a sitemap mirrors the navigation a reader would follow.
+   *
+   * A post appears in its year child and again in each of its category children.
+   * The protocol permits a URL in more than one sitemap, and that repetition is
+   * precisely what buys the per-topic coverage figures.
+   */
   private void renderSiteMap() {
     final String base = "https://" + this.config.bloghost + this.config.webBlogLocation;
     final SimpleDateFormat w3c = new SimpleDateFormat("yyyy-MM-dd");
 
     /*
-     * /why: TreeSet keeps the archive URLs ordered and de-duplicated -- many
-     * entries share a year/month, and every month implies its year. The periods
-     * are derived from getDateYear()/getDateURL() rather than from the entry's
-     * URL because addToOverviewPage() files the archive pages by exactly those
-     * two getters. Both format publishDate in the local time zone, which the
-     * authored URL field does not have to agree with: an entry published
-     * 2002-12-31T16:00:00Z is midnight 1 January in Singapore, so it lives under
-     * 2003/01/ while its permalink still says 2002/12. Deriving from the URL
-     * would invent an archive page the renderer never wrote and omit one it did.
+     * /why: seeded with the names this method writes itself, so a category whose
+     * slug is "pages" cannot overwrite the standing-pages child. Years are
+     * claimed before categories, so a clash can only ever displace a category --
+     * which is the one that carries a disambiguating suffix.
      */
-    final Set<String> years = new TreeSet<>();
-    final Set<String> months = new TreeSet<>();
-    final StringBuilder posts = new StringBuilder();
-    int entryCount = 0;
-    Date newest = null;
+    final Set<String> usedNames = new HashSet<>();
+    usedNames.add(Config.SITEMAP_NAME);
+    usedNames.add(Config.SITEMAP_PAGES);
 
-    for (final BlogEntry entry : this.theBlog) {
-      if (!PUBLISHED.equalsIgnoreCase(entry.getStatus())) {
-        continue;
+    final List<SiteMapChild> children = new ArrayList<>();
+
+    /*
+     * /why: overviewPages is keyed by year ("2014"), year-month ("2014/03") and
+     * category slug ("java"), with the two index pages under keys of their own.
+     * The year-month instructions are skipped deliberately -- their archive URL
+     * and their posts are emitted inside the year child, which is what keeps
+     * everything about one year in a single file. Years are taken from
+     * descendingMap() so the index lists the newest first.
+     */
+    for (final RenderInstructions ri : this.overviewPages.descendingMap().values()) {
+      if ("year".equals(ri.type)) {
+        children.add(this.siteMapForYear(ri, base, w3c, usedNames));
       }
-      years.add(entry.getDateYear());
-      months.add(entry.getDateURL()); // "2026/09"
-      if ((newest == null) || entry.getPublishDate().after(newest)) {
-        newest = entry.getPublishDate();
+    }
+    final int yearCount = children.size();
+
+    for (final RenderInstructions ri : this.overviewPages.values()) {
+      if (BlogRenderer.CATEGORY.equals(ri.type)) {
+        children.add(this.siteMapForCategory(ri, base, w3c, usedNames));
       }
-      entryCount++;
-      posts.append(BlogRenderer.urlElement(base + entry.getEntryUrl(),
-          w3c.format(entry.getPublishDate())));
     }
+    final int categoryCount = children.size() - yearCount;
 
-    /*
-     * /why: every one of the four children is derived from the same corpus of
-     * published entries -- a new post adds an archive month, may add a category
-     * and always changes all.html -- so the newest publish date is the honest
-     * lastmod for all four. With no entries at all there is nothing to date, so
-     * fall back to today rather than emitting a bare <sitemap> element.
-     */
-    final String lastmod = w3c.format((newest == null) ? new Date() : newest);
-
-    final StringBuilder archives = new StringBuilder();
-    for (final String year : years) {
-      archives.append(BlogRenderer.urlElement(base + year + "/", null));
-    }
-    for (final String month : months) {
-      archives.append(BlogRenderer.urlElement(base + month + "/", null));
-    }
-
-    /*
-     * /why: the "All Categories" hub at categoriesLocation + index.html (see the
-     * riCat RenderInstructions in the constructor) is rendered on every run and
-     * is the entry point to the whole category tree, so it belongs in the sitemap
-     * alongside the individual category pages. It is declared as the directory
-     * URL, which is how the archive pages are declared too.
-     *
-     * Iterate the category keys, not the LinkItem values: addToOverviewPage()
-     * writes each category page to categoriesLocation + <map key> + ".html",
-     * whereas LinkItem.place already carries webBlogLocation + categoriesLocation
-     * baked in -- reusing it here would emit that prefix twice.
-     */
-    final StringBuilder categories = new StringBuilder();
-    categories.append(BlogRenderer.urlElement(base + this.config.categoriesLocation, null));
-    for (final String catKey : this.allCategories.keySet()) {
-      categories.append(BlogRenderer.urlElement(
-          base + this.config.categoriesLocation + catKey + BlogRenderer.HTML_ENDING, null));
-    }
-
-    /*
-     * /why: the standing pages were missing from the sitemap entirely -- they are
-     * rendered on every run but belong to no category, year or month, so nothing
-     * in the loops above reaches them. Their names come from Config so a renamed
-     * page cannot silently drop out. downloadDirectory is a directory whose
-     * index.html is the rendered page, so it is declared as a directory URL, the
-     * same form used for the archives and the category hub.
-     */
-    final StringBuilder standing = new StringBuilder();
-    standing.append(BlogRenderer.urlElement(base, lastmod));
-    for (final String page : new String[] {this.config.allIndexFileName,
-        this.config.seriesFileName, this.config.imprintFileName, this.config.downloadDirectory}) {
-      standing.append(BlogRenderer.urlElement(base + page, null));
-    }
-
-    final Map<String, StringBuilder> children = new LinkedHashMap<>();
-    children.put(Config.SITEMAP_POSTS, posts);
-    children.put(Config.SITEMAP_ARCHIVES, archives);
-    children.put(Config.SITEMAP_CATEGORIES, categories);
-    children.put(Config.SITEMAP_PAGES, standing);
+    children.add(this.siteMapForStandingPages(base, w3c));
 
     final StringBuilder index = new StringBuilder(BlogRenderer.XML_DECLARATION);
     index.append("<sitemapindex xmlns=\"http://www.sitemaps.org/schemas/sitemap/0.9\">\n");
+    int urlCount = 0;
 
-    for (final Map.Entry<String, StringBuilder> child : children.entrySet()) {
+    for (final SiteMapChild child : children) {
       final StringBuilder urlset = new StringBuilder(BlogRenderer.XML_DECLARATION);
       urlset.append("<urlset xmlns=\"http://www.sitemaps.org/schemas/sitemap/0.9\">\n")
-          .append(child.getValue())
+          .append(child.urls())
           .append("</urlset>\n");
-      this.writeSiteMapFile(child.getKey(), urlset.toString());
+      this.writeSiteMapFile(child.fileName(), urlset.toString());
+      urlCount += BlogRenderer.countUrls(child.urls());
 
       index.append("<sitemap><loc>")
-          .append(BlogRenderer.xmlEscape(base + child.getKey()))
+          .append(BlogRenderer.xmlEscape(base + child.fileName()))
           .append("</loc><lastmod>")
-          .append(lastmod)
+          .append(child.lastmod())
           .append("</lastmod></sitemap>\n");
     }
     index.append("</sitemapindex>\n");
 
     this.writeSiteMapFile(Config.SITEMAP_NAME, index.toString());
 
-    System.out.println("\n" + Config.SITEMAP_NAME + " index rendered: " + entryCount
-        + " entries, " + years.size() + " years, " + months.size() + " months, "
-        + this.allCategories.size() + " categories, 4 standing pages");
+    System.out.println("\n" + Config.SITEMAP_NAME + " index rendered: " + children.size()
+        + " children (" + yearCount + " years, " + categoryCount
+        + " categories, 1 standing pages), " + urlCount + " urls");
+  }
+
+  /**
+   * One child sitemap, assembled in full before anything is written.
+   *
+   * @param fileName the child's file name inside destinationDirectory
+   * @param urls the concatenated &lt;url&gt; elements
+   * @param lastmod the W3C date of the newest entry the child declares
+   */
+  private record SiteMapChild(String fileName, String urls, String lastmod) {
+  }
+
+  /**
+   * Builds the child for one year: the year archive, then each month archive
+   * newest first, each followed by that month's posts newest first.
+   *
+   * /why: the order is borrowed from processCategorizedMembers() rather than
+   * re-derived -- descendingKeySet() over the month groups and descendingSet()
+   * within each group is exactly what the rendered year page shows. Sorting
+   * independently here would let the sitemap and the page drift apart.
+   *
+   * @param ri the year's render instructions, whose categories are its months
+   * @param base the absolute blog base URL
+   * @param w3c the date format for lastmod
+   * @param usedNames the file names already claimed, extended by this call
+   * @return the finished child
+   */
+  private SiteMapChild siteMapForYear(final RenderInstructions ri, final String base,
+      final SimpleDateFormat w3c, final Set<String> usedNames) {
+    final StringBuilder urls = new StringBuilder();
+    urls.append(BlogRenderer.urlElement(base + ri.key + "/", null));
+    Date newest = null;
+
+    if (ri.categories != null) {
+      for (final String month : ri.categories.descendingKeySet()) {
+        urls.append(BlogRenderer.urlElement(base + ri.key + "/" + month + "/", null));
+        newest = BlogRenderer.appendEntries(urls, ri.categories.get(month), base, w3c, newest);
+      }
+    }
+
+    return BlogRenderer.siteMapChild(ri.key, urls, newest, w3c, usedNames);
+  }
+
+  /**
+   * Builds the child for one category: its summary page, then its posts newest
+   * first, grouped by year descending as the category page groups them.
+   *
+   * @param ri the category's render instructions, whose categories are its years
+   * @param base the absolute blog base URL
+   * @param w3c the date format for lastmod
+   * @param usedNames the file names already claimed, extended by this call
+   * @return the finished child
+   */
+  private SiteMapChild siteMapForCategory(final RenderInstructions ri, final String base,
+      final SimpleDateFormat w3c, final Set<String> usedNames) {
+    final StringBuilder urls = new StringBuilder();
+    urls.append(BlogRenderer.urlElement(
+        base + this.config.categoriesLocation + ri.key + BlogRenderer.HTML_ENDING, null));
+    Date newest = null;
+
+    if (ri.categories != null) {
+      for (final String year : ri.categories.descendingKeySet()) {
+        newest = BlogRenderer.appendEntries(urls, ri.categories.get(year), base, w3c, newest);
+      }
+    }
+
+    return BlogRenderer.siteMapChild(ri.key, urls, newest, w3c, usedNames);
+  }
+
+  /**
+   * Builds the child for the pages that belong to no year and no category.
+   *
+   * /why: the standing pages are rendered on every run but nothing in the year
+   * or category walks reaches them, so without this child they would be
+   * undeclared. Their names come from Config, so a renamed page cannot silently
+   * drop out. downloadDirectory and categoriesLocation are directories whose
+   * index.html is the page, so they are declared as directory URLs -- the same
+   * form the archives use.
+   *
+   * @param base the absolute blog base URL
+   * @param w3c the date format for lastmod
+   * @return the finished child
+   */
+  private SiteMapChild siteMapForStandingPages(final String base, final SimpleDateFormat w3c) {
+    final StringBuilder urls = new StringBuilder();
+    Date newest = null;
+
+    for (final BlogEntry entry : this.theBlog) {
+      if (PUBLISHED.equalsIgnoreCase(entry.getStatus())
+          && ((newest == null) || entry.getPublishDate().after(newest))) {
+        newest = entry.getPublishDate();
+      }
+    }
+
+    urls.append(BlogRenderer.urlElement(base, (newest == null) ? null : w3c.format(newest)));
+    for (final String page : new String[] {this.config.allIndexFileName,
+        this.config.seriesFileName, this.config.imprintFileName, this.config.downloadDirectory,
+        this.config.categoriesLocation}) {
+      urls.append(BlogRenderer.urlElement(base + page, null));
+    }
+
+    return new SiteMapChild(Config.SITEMAP_PAGES, urls.toString(),
+        w3c.format((newest == null) ? new Date() : newest));
+  }
+
+  /**
+   * Appends one group's published entries, newest first, with their publish date
+   * as lastmod.
+   *
+   * @param urls the buffer to append to
+   * @param group the render instructions holding the group's members
+   * @param base the absolute blog base URL
+   * @param w3c the date format for lastmod
+   * @param newestSoFar the newest publish date seen by the caller, or null
+   * @return the newest publish date including this group
+   */
+  private static Date appendEntries(final StringBuilder urls, final RenderInstructions group,
+      final String base, final SimpleDateFormat w3c, final Date newestSoFar) {
+    Date newest = newestSoFar;
+    if ((group == null) || (group.members == null)) {
+      return newest;
+    }
+    for (final BlogEntry entry : group.members.descendingSet()) {
+      if (!PUBLISHED.equalsIgnoreCase(entry.getStatus())) {
+        continue;
+      }
+      urls.append(BlogRenderer.urlElement(base + entry.getEntryUrl(),
+          w3c.format(entry.getPublishDate())));
+      if ((newest == null) || entry.getPublishDate().after(newest)) {
+        newest = entry.getPublishDate();
+      }
+    }
+    return newest;
+  }
+
+  /**
+   * Names a child after its key and records the name as taken.
+   *
+   * /why: a category slug is [a-z0-9]+ (LinkItem.cleanPlace) and a year key is
+   * four digits, so a category named "2014" would produce the same file name as
+   * the year. Years claim their names first, so the suffix only ever lands on the
+   * category -- and a sitemap silently overwritten by another is the kind of
+   * defect that shows up as missing coverage months later, not as a build error.
+   *
+   * @param key the year or category slug
+   * @param urls the child's &lt;url&gt; elements
+   * @param newest the newest publish date the child declares, or null
+   * @param w3c the date format for lastmod
+   * @param usedNames the file names already claimed, extended by this call
+   * @return the finished child
+   */
+  private static SiteMapChild siteMapChild(final String key, final StringBuilder urls,
+      final Date newest, final SimpleDateFormat w3c, final Set<String> usedNames) {
+    String fileName = Config.SITEMAP_PREFIX + key + Config.SITEMAP_SUFFIX;
+    if (!usedNames.add(fileName)) {
+      fileName = Config.SITEMAP_PREFIX + key + Config.SITEMAP_CATEGORY_DISAMBIGUATOR
+          + Config.SITEMAP_SUFFIX;
+      usedNames.add(fileName);
+    }
+    return new SiteMapChild(fileName, urls.toString(),
+        w3c.format((newest == null) ? new Date() : newest));
+  }
+
+  /**
+   * Counts the &lt;url&gt; elements in a child, for the build log only.
+   *
+   * @param urls the child's &lt;url&gt; elements
+   * @return how many there are
+   */
+  private static int countUrls(final String urls) {
+    int count = 0;
+    int at = urls.indexOf("<url>");
+    while (at >= 0) {
+      count++;
+      at = urls.indexOf("<url>", at + 1);
+    }
+    return count;
   }
 
   /**
