@@ -37,9 +37,11 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.SortedSet;
+import java.util.TimeZone;
 import java.util.TreeMap;
 import java.util.TreeSet;
 import com.github.mustachejava.DefaultMustacheFactory;
@@ -745,7 +747,13 @@ public class BlogRenderer {
    */
   private void renderSiteMap() {
     final String base = "https://" + this.config.bloghost + this.config.webBlogLocation;
-    final SimpleDateFormat w3c = new SimpleDateFormat("yyyy-MM-dd");
+    /*
+     * /why: pinned to UTC for the same reason BlogEntry pins its formatters -- a
+     * <lastmod> is a claim about a date, and the same entry must not be dated
+     * 2002-12-31 by one build machine and 2003-01-01 by another.
+     */
+    final SimpleDateFormat w3c = new SimpleDateFormat("yyyy-MM-dd", Locale.ENGLISH);
+    w3c.setTimeZone(TimeZone.getTimeZone("UTC"));
 
     /*
      * /why: seeded with the names this method writes itself, so a category whose

@@ -38,6 +38,8 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Date;
+import java.util.Locale;
+import java.util.TimeZone;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -57,6 +59,38 @@ public class BlogEntry implements Serializable, Comparable<BlogEntry> {
 
   private static final String MARKDOWN = "MARKDOWN";
   public static final String NEWLINE = System.getProperty("line.separator");
+
+  /**
+   * The zone and locale every rendered date is expressed in.
+   *
+   * /why: SnakeYAML parses "2002-12-31T16:00:00Z" into a true instant, and every
+   * formatter in this class then rendered that instant in the JVM's default zone.
+   * CI runs in UTC and a Singapore workstation does not, so one unchanged source
+   * file produced a post filed under 2002/12 in CI and under 2003/01 locally --
+   * two different archive pages, and since the sitemap split, two different year
+   * sitemaps. The locale is pinned for the same reason: "MMMM" is "December" or
+   * "Dezember" depending on who runs the build.
+   *
+   * UTC and English are what the published site has always been built with, so
+   * pinning them moves nothing live; it only makes a local render reproduce it.
+   */
+  private static final TimeZone RENDER_ZONE = TimeZone.getTimeZone("UTC");
+  private static final Locale RENDER_LOCALE = Locale.ENGLISH;
+
+  /**
+   * A date formatter pinned to the render zone and locale.
+   *
+   * /why: SimpleDateFormat is not thread safe, so this hands out a fresh
+   * instance per call rather than caching one, exactly as the callers did before.
+   *
+   * @param pattern the SimpleDateFormat pattern
+   * @return a formatter that yields the same text on every machine
+   */
+  private static SimpleDateFormat renderFormat(final String pattern) {
+    final SimpleDateFormat sdf = new SimpleDateFormat(pattern, BlogEntry.RENDER_LOCALE);
+    sdf.setTimeZone(BlogEntry.RENDER_ZONE);
+    return sdf;
+  }
 
   public static final String DATE_FORMAT = "dd MMMM yyyy";
   public static final String DATE_FORMATSHORT = "MMMM yyyy";
@@ -233,11 +267,11 @@ public class BlogEntry implements Serializable, Comparable<BlogEntry> {
       if (value instanceof Date) {
         result.setPublishDate((Date) value);
       } else {
-        SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'");
+        SimpleDateFormat sdf = BlogEntry.renderFormat("yyyy-MM-dd'T'HH:mm:ss'Z'");
         try {
           result.setPublishDate(sdf.parse(String.valueOf(value)));
         } catch (ParseException e) {
-          SimpleDateFormat sdf2 = new SimpleDateFormat("yyyy-MM-dd");
+          SimpleDateFormat sdf2 = BlogEntry.renderFormat("yyyy-MM-dd");
           try {
             result.setPublishDate(
                 sdf2.parse(String.valueOf(value).substring(0, 10)));
@@ -461,22 +495,22 @@ public class BlogEntry implements Serializable, Comparable<BlogEntry> {
   }
 
   public String getDateMonth() {
-    final SimpleDateFormat sdf = new SimpleDateFormat("MMMM");
+    final SimpleDateFormat sdf = BlogEntry.renderFormat("MMMM");
     return sdf.format(this.getPublishDate());
   }
 
   public String getDateMonthNumber() {
-    final SimpleDateFormat sdf = new SimpleDateFormat("MM");
+    final SimpleDateFormat sdf = BlogEntry.renderFormat("MM");
     return sdf.format(this.getPublishDate());
   }
 
   public String getDateURL() {
-    final SimpleDateFormat sdf = new SimpleDateFormat("yyyy/MM");
+    final SimpleDateFormat sdf = BlogEntry.renderFormat("yyyy/MM");
     return sdf.format(this.getPublishDate());
   }
 
   public String getDateYear() {
-    final SimpleDateFormat sdf = new SimpleDateFormat("yyyy");
+    final SimpleDateFormat sdf = BlogEntry.renderFormat("yyyy");
     if (this.getPublishDate() == null) {
       return sdf.format(new Date());
     }
@@ -553,17 +587,17 @@ public class BlogEntry implements Serializable, Comparable<BlogEntry> {
   }
 
   public String getPublishDateString() {
-    final SimpleDateFormat sdf = new SimpleDateFormat(BlogEntry.DATE_FORMAT);
+    final SimpleDateFormat sdf = BlogEntry.renderFormat(BlogEntry.DATE_FORMAT);
     return sdf.format(this.getPublishDate());
   }
 
   public String getPublishDateStringShort() {
-    final SimpleDateFormat sdf = new SimpleDateFormat(BlogEntry.DATE_FORMATSHORT);
+    final SimpleDateFormat sdf = BlogEntry.renderFormat(BlogEntry.DATE_FORMATSHORT);
     return sdf.format(this.getPublishDate());
   }
 
   public String getPublishDateStringSort() {
-    final SimpleDateFormat sdf = new SimpleDateFormat(BlogEntry.DATE_FORMATSORT);
+    final SimpleDateFormat sdf = BlogEntry.renderFormat(BlogEntry.DATE_FORMATSORT);
     return sdf.format(this.getPublishDate());
   }
 
