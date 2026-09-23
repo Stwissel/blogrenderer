@@ -13,6 +13,12 @@ public class BlogIndex {
   LinkItem nextItem;
   Collection<LinkItem> allCategories;
   Collection<LinkItem> allDateCategories;
+
+  /**
+   * The same archive as allDateCategories, but nested: each year carries its
+   * own months, so the sidebar can collapse 275 month links under 24 years.
+   */
+  Collection<DateArchive> archiveByYear;
   BlogEntryCollection topArticles;
   BlogEntryCollection relevantArticles;
   String pageTitle;

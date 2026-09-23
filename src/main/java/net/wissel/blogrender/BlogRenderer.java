@@ -32,6 +32,7 @@ import java.io.Writer;
 import java.nio.charset.StandardCharsets;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -99,6 +100,7 @@ public class BlogRenderer {
   private final TreeMap<String, LinkItem> allCategories = new TreeMap<>();
 
   private final TreeMap<String, LinkItem> allDateCategories = new TreeMap<>();
+  private final TreeMap<String, DateArchive> archiveByYear = new TreeMap<>();
 
   private final TreeMap<String, TreeMap<String, LinkItem>> allSeries = new TreeMap<>();
 
@@ -279,6 +281,31 @@ public class BlogRenderer {
     });
     this.addToOverviewPage("yearmonth", null,
         be.getDateYear() + "/" + be.getDateMonthNumber(), be);
+
+    /*
+     * /why built here and not derived from allDateCategories later: the month a
+     * post belongs to comes from getDateYear()/getDateMonthNumber(), the same
+     * getters addToOverviewPage files the archive pages by. Deriving it from the
+     * permalink would disagree with those pages for any post whose publish
+     * instant and authored URL fall on different sides of midnight.
+     */
+    final DateArchive year = this.archiveByYear.computeIfAbsent(be.getDateYear(),
+        y -> new DateArchive(y, this.config.webBlogLocation + y));
+    year.count += 1;
+    final String monthPlace =
+        this.config.webBlogLocation + be.getDateYear() + "/" + be.getDateMonthNumber() + "/";
+    LinkItem month = null;
+    for (final LinkItem m : year.months) {
+      if (m.place.equals(monthPlace)) {
+        month = m;
+        break;
+      }
+    }
+    if (month == null) {
+      year.months.add(new LinkItem(be.getDateMonth(), monthPlace, be.getDateMonthNumber(), true));
+    } else {
+      month.count += 1;
+    }
 
     // Add to a series collection if there
     if (be.getSeries() != null) {
@@ -510,6 +537,7 @@ public class BlogRenderer {
     final BlogIndex bi = new BlogIndex();
     bi.allCategories = this.allCategories.values();
     bi.allDateCategories = this.allDateCategories.values();
+    bi.archiveByYear = this.archiveByYear.descendingMap().values();
     bi.topArticles = new BlogEntryCollection(true);
     bi.relevantArticles = new BlogEntryCollection(true);
 
@@ -599,6 +627,8 @@ public class BlogRenderer {
       be.cleanupComments();
       be.setAllCategories(this.allCategories.values());
       be.setAllDateCategories(this.allDateCategories.descendingMap().values());
+      be.setArchiveByYear(this.archiveByYear.descendingMap().values());
+      be.setRelatedItems(this.findRelated(be));
 
       if ((be.getSeries() != null)) {
         final String series = be.getSeries();
@@ -631,6 +661,50 @@ public class BlogRenderer {
   }
 
 
+  /**
+   * Finds the posts most like this one, by shared categories.
+   *
+   * /why shared categories rather than anything cleverer: it is the only
+   * relatedness signal this corpus actually carries. There is no tagging beyond
+   * categories, no view data and no full-text index, so a similarity score would
+   * be invented rather than measured. Ties break towards the newer post, which
+   * is what a reader following "related" is usually looking for.
+   *
+   * @param be the entry to find neighbours for
+   * @return at most five related posts, most shared categories first
+   */
+  private List<LinkItem> findRelated(final BlogEntry be) {
+    final Set<String> mine = new HashSet<>(be.getCategory());
+    if (mine.isEmpty()) {
+      return Collections.emptyList();
+    }
+    final TreeMap<String, BlogEntry> ranked = new TreeMap<>();
+    for (final BlogEntry other : this.theBlog) {
+      if ((other == be) || !PUBLISHED.equalsIgnoreCase(other.getStatus())) {
+        continue;
+      }
+      int shared = 0;
+      for (final String c : other.getCategory()) {
+        if (mine.contains(c)) {
+          shared++;
+        }
+      }
+      if (shared > 0) {
+        // Sort key: more shared categories first, then newer first.
+        ranked.put(String.format("%02d|%s|%s", 99 - shared,
+            Utils.date2ComparableString(other.getPublishDate()), other.getEntryUrl()), other);
+      }
+    }
+    final List<LinkItem> result = new ArrayList<>();
+    for (final BlogEntry hit : ranked.values()) {
+      if (result.size() >= 5) {
+        break;
+      }
+      result.add(hit.getLinkItem(this.config.webBlogLocation));
+    }
+    return result;
+  }
+
   private void renderImprint() {
 
     final String template = this.config.IMPRINT_TEMPLATE;
@@ -640,6 +714,7 @@ public class BlogRenderer {
     final BlogIndex bi = new BlogIndex();
     bi.allCategories = this.allCategories.values();
     bi.allDateCategories = this.allDateCategories.values();
+    bi.archiveByYear = this.archiveByYear.descendingMap().values();
     bi.topArticles = new BlogEntryCollection(true);
     final int max = 5;
     int i = 0;
@@ -667,6 +742,7 @@ public class BlogRenderer {
     final BlogIndex bi = new BlogIndex();
     bi.allCategories = this.allCategories.values();
     bi.allDateCategories = this.allDateCategories.values();
+    bi.archiveByYear = this.archiveByYear.descendingMap().values();
     bi.topArticles = new BlogEntryCollection(true);
     final int max = 10;
     int i = 0;
@@ -692,6 +768,7 @@ public class BlogRenderer {
     final BlogIndex bi = new BlogIndex();
     bi.allCategories = this.allCategories.values();
     bi.allDateCategories = this.allDateCategories.values();
+    bi.archiveByYear = this.archiveByYear.descendingMap().values();
     bi.topArticles = new BlogEntryCollection(true);
     final int max = 10;
     int i = 0;
@@ -1148,6 +1225,7 @@ public class BlogRenderer {
     final BlogIndex bi = new BlogIndex();
     bi.allCategories = this.allCategories.values();
     bi.allDateCategories = this.allDateCategories.values();
+    bi.archiveByYear = this.archiveByYear.descendingMap().values();
     bi.pageTitle = ri.pageTitle;
     bi.pageLink = ri.pageLink;
     bi.nextItem = ri.nextItem;
@@ -1188,6 +1266,7 @@ public class BlogRenderer {
       final BlogIndex subBi = new BlogIndex();
       subBi.allCategories = this.allCategories.values();
       subBi.allDateCategories = this.allDateCategories.values();
+      subBi.archiveByYear = this.archiveByYear.descendingMap().values();
       subBi.pageTitle = curRi.pageTitle;
       subBi.pageLink = curRi.pageLink;
       subBi.topArticles = new BlogEntryCollection(true);
@@ -1251,6 +1330,7 @@ public class BlogRenderer {
 
     bi.allCategories = this.allCategories.values();
     bi.allDateCategories = this.allDateCategories.values();
+    bi.archiveByYear = this.archiveByYear.descendingMap().values();
 
     this.renderToDisk(template, finalDestination, bi);
     System.out.println("Rendered series");

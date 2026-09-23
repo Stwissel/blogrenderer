@@ -320,6 +320,8 @@ public class BlogEntry implements Serializable, Comparable<BlogEntry> {
   private final transient Map<String, Object> meta = new HashMap<>();
 
   private List<String> category = new ArrayList<>();
+  private List<LinkItem> relatedItems;
+  private java.util.Collection<DateArchive> archiveByYear;
   private Date publishDate = new Date();
   private String location;
   private String status;
@@ -785,6 +787,30 @@ public class BlogEntry implements Serializable, Comparable<BlogEntry> {
 
   public void setSeries(final String series) {
     this.series = series;
+  }
+
+  /**
+   * Other posts sharing this one's categories, most overlap first.
+   *
+   * /why set from outside rather than computed here: relatedness is a fact
+   * about the whole corpus, and a BlogEntry only knows itself.
+   *
+   * @param relatedItems the related posts, already ranked and truncated
+   */
+  public void setArchiveByYear(final java.util.Collection<DateArchive> archiveByYear) {
+    this.archiveByYear = archiveByYear;
+  }
+
+  public java.util.Collection<DateArchive> getArchiveByYear() {
+    return this.archiveByYear;
+  }
+
+  public void setRelatedItems(final List<LinkItem> relatedItems) {
+    this.relatedItems = relatedItems;
+  }
+
+  public List<LinkItem> getRelatedItems() {
+    return this.relatedItems;
   }
 
   public void setSeriesMember(final List<LinkItem> seriesMember) {
