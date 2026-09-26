@@ -469,11 +469,37 @@ public class BlogEntry implements Serializable, Comparable<BlogEntry> {
     return this.category;
   }
 
+  /**
+   * The number of comments, in decimal.
+   *
+   * /why this is worth a comment: it used to return
+   * Integer.toHexString(size). Below ten that is identical to decimal, which
+   * is why it survived for years -- but 32 posts have ten or more, and the
+   * busiest showed "Comments (c)" for twelve and "Comments (19)" for
+   * twenty-five. Verified live before changing it.
+   *
+   * @return the comment count as a decimal string
+   */
   public String getCommentCount() {
-    if (this.comments.isEmpty()) {
-      return "0";
+    return String.valueOf(this.comments.size());
+  }
+
+  /**
+   * The comment count as a phrase, correctly singular.
+   *
+   * /why the renderer and not the template: Mustache cannot branch on a
+   * number, so "1 comment" versus "12 comments" cannot be expressed there.
+   * Returns null when there are none, so a section on it renders nothing and
+   * the byline does not advertise "0 comments".
+   *
+   * @return "1 comment", "N comments", or null when there are none
+   */
+  public String getCommentLabel() {
+    final int size = this.comments.size();
+    if (size == 0) {
+      return null;
     }
-    return Integer.toHexString(this.comments.size());
+    return size == 1 ? "1 comment" : size + " comments";
   }
 
   /**
