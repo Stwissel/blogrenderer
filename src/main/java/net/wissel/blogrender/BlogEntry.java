@@ -485,6 +485,24 @@ public class BlogEntry implements Serializable, Comparable<BlogEntry> {
     return result;
   }
 
+  /**
+   * Whether this entry has any comments at all.
+   *
+   * /why a boolean when getComments() already exists: a Mustache section over
+   * the comment Set iterates it, so a template cannot ask "is this empty?"
+   * without being inside the loop -- and the card that wraps the comments has
+   * to be decided before the loop starts. Mustache also has no AND, so
+   * "comments are closed AND there are none" needs one of its two halves
+   * answered here. Without it a closed entry with no comments rendered an empty
+   * Comments panel inviting the reader to "be the first to comment", on a post
+   * that no longer accepts any.
+   *
+   * @return TRUE when at least one comment exists, FALSE otherwise
+   */
+  public Boolean getHasComments() {
+    return !this.comments.isEmpty();
+  }
+
   public Boolean getCommentsclosed() {
     return this.commentsclosed;
   }
